@@ -143,15 +143,26 @@ void statusBar() {
       if (i < bars) oled.fillRect(i * 4, 7 - h, 3, h, SSD1306_WHITE);
       else oled.drawRect(i * 4, 7 - h, 3, h, SSD1306_WHITE);
     }
+  } else if (onRouter) {   // lost the router: say so plainly, the weight can wait
+    oled.fillRect(0, 0, W, 10, SSD1306_WHITE);
+    oled.setTextColor(SSD1306_BLACK);
+    centred("NO WI-FI", 1, 1);
+    oled.setTextColor(SSD1306_WHITE);
+    return;
   } else {
     oled.setCursor(0, 0);
-    oled.print(onRouter ? "--" : "AP");
+    oled.print("AP");
   }
-  if (mqtt.connected()) {   // a small cloud
+  if (mqtt.connected()) {   // a small cloud: filled when online, an outline with a gap when not
     oled.fillCircle(17, 4, 2, SSD1306_WHITE);
     oled.fillCircle(21, 3, 3, SSD1306_WHITE);
     oled.fillCircle(25, 4, 2, SSD1306_WHITE);
     oled.fillRect(17, 4, 9, 3, SSD1306_WHITE);
+  } else if (onRouter) {
+    oled.drawCircle(17, 4, 2, SSD1306_WHITE);
+    oled.drawCircle(21, 3, 3, SSD1306_WHITE);
+    oled.drawCircle(25, 4, 2, SSD1306_WHITE);
+    oled.drawLine(15, 8, 27, 0, SSD1306_WHITE);
   }
   String g = String((int)roundf(curG)) + "g";
   oled.setCursor(W - g.length() * 6, 0);

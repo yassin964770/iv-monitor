@@ -106,6 +106,8 @@ input[dir=ltr]{text-align:left}
     <p class="note" id="vnote">للاختبار بالماء فقط، ولا يُستخدم على المرضى.</p>
   </section>
 
+  <p class="note" id="health" role="status"></p>
+
   <section class="card">
     <details id="settings">
       <summary>الإعدادات والمعايرة</summary>
@@ -172,6 +174,20 @@ function render(s) {
     filled = true;
   }
   draw(s.chart || []);
+  health(s);
+}
+
+/* One line on the device's network, so a drop can be explained. */
+const WHY = { 200: 'ضعف الإشارة أو انقطاعها', 201: 'لم يجد الشبكة', 202: 'كلمة مرور الشبكة', 15: 'رفض الراوتر الاتصال', 8: 'الراوتر أنهى الاتصال' };
+function health(s) {
+  if (s.up == null) { $('health').textContent = ''; return; }
+  const up = s.up < 3600 ? Math.round(s.up / 60) + ' دقيقة' : (s.up / 3600).toFixed(1) + ' ساعة';
+  const parts = ['يعمل منذ ' + up];
+  if (s.rssi != null) parts.push('إشارة الوايفاي ' + s.rssi + ' dBm' + (s.rssi < -75 ? ' (ضعيفة)' : ''));
+  if (s.drops > 0) parts.push('انقطع الوايفاي ' + s.drops + ' مرة' + (WHY[s.why] ? '، آخرها بسبب ' + WHY[s.why] : ''));
+  if (s.boot === 'brownout') parts.push('أُعيد تشغيله لضعف التغذية الكهربائية');
+  else if (s.boot === 'watchdog' || s.boot === 'crash') parts.push('أُعيد تشغيله بعد توقف البرنامج');
+  $('health').textContent = parts.join('، ') + '.';
 }
 
 function draw(pts) {
@@ -201,7 +217,11 @@ function setConn() {
   if (client && client.connected) {
     if (deviceOnline && fresh) { cls = 'conn'; text = 'الجهاز متصل'; }
     else if (deviceOnline || fresh) { cls = 'conn wait'; text = 'بانتظار بيانات الجهاز'; }
-    else { cls = 'conn off'; text = 'الجهاز غير متصل'; }
+    else {
+      cls = 'conn off'; text = 'الجهاز غير متصل';
+      if (lastSeen) { const m = Math.round((Date.now() - lastSeen) / 60000); text += m >= 1 ? '، آخر قراءة قبل ' + m + ' د' : ''; }
+      else if (last) text += '، القراءات المعروضة قديمة';
+    }
   } else if (client) { cls = 'conn wait'; text = 'جارٍ الاتصال بالخادم'; }
   $('conn').className = cls; $('connText').textContent = text;
   document.querySelectorAll('#app button:not(.link)').forEach(b => b.disabled = !(client && client.connected && deviceOnline));
@@ -286,9 +306,9 @@ function connect(cfg) {
     say('');
     setConn();
   });
-  client.on('message', (t, m) => {
+  client.on('message', (t, m, p) => {
     const s = m.toString();
-    if (t === base + '/state') { try { render(JSON.parse(s)); lastSeen = Date.now(); } catch (e) {} }
+    if (t === base + '/state') { try { render(JSON.parse(s)); if (!p.retain) lastSeen = Date.now(); } catch (e) {} }
     else if (t === base + '/status') deviceOnline = s === 'online';
     else if (t === base + '/ack' && s.startsWith('error')) say(s.includes('control key') ? 'رمز التحكم غير صحيح، فرفض الجهاز الأمر.' : 'رفض الجهاز الأمر: ' + s.slice(7), true);
     setConn();

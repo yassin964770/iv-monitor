@@ -22,6 +22,7 @@
 #include <ESP32Servo.h>
 #include <time.h>
 #include "mbedtls/md.h"
+#include <esp_task_wdt.h>
 #include <Wire.h>
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
@@ -88,6 +89,22 @@ const char *curState = "warming";
 int valveState = -1;            // -1 unknown, 0 open, 1 closed
 bool autoClosed = false;
 bool onRouter = false;          // true: joined the router; false: running its own Wi-Fi
+// Network health, published with the state so a drop can be explained afterwards.
+int wifiDrops = 0, wifiWhy = 0;                // times the Wi-Fi dropped, and the last reason code
+unsigned long wifiLostAt = 0;                  // when the Wi-Fi was lost, 0 while connected
+const char *bootWhy = "";                      // why the board last started, e.g. power on, brownout
+
+const char *resetName() {
+  switch (esp_reset_reason()) {
+    case ESP_RST_POWERON: return "power on";
+    case ESP_RST_SW: return "restart";
+    case ESP_RST_PANIC: return "crash";
+    case ESP_RST_INT_WDT: case ESP_RST_TASK_WDT: case ESP_RST_WDT: return "watchdog";
+    case ESP_RST_BROWNOUT: return "brownout";
+    case ESP_RST_EXT: return "reset button";
+    default: return "other";
+  }
+}
 unsigned long servoOffAt = 0;
 
 void save() {
@@ -273,6 +290,11 @@ String stateJson() {
   s += "\"autoClosed\":"; s += autoClosed ? "true" : "false"; s += ',';
   s += "\"mqtt\":"; s += mqtt.connected() ? "true" : "false"; s += ',';
   s += "\"id\":\""; s += deviceId; s += "\",";
+  num(s, "rssi", WiFi.status() == WL_CONNECTED ? WiFi.RSSI() : NAN, 0);
+  num(s, "drops", wifiDrops, 0);
+  num(s, "why", wifiWhy, 0);
+  num(s, "up", millis() / 1000, 0);
+  s += "\"boot\":\""; s += bootWhy; s += "\",";
   s += "\"chart\":[";
   for (int i = 0; i < chartN; i++) {
     if (i) s += ',';
@@ -356,6 +378,8 @@ void setupMqtt() {
   int port = atoi(mqttPort);
   if (port == 8883) {
     tlsClient.setInsecure();   // encrypted, but the broker's certificate is not checked: fine for a test, not for a ward
+    tlsClient.setHandshakeTimeout(8);   // a stalled handshake must not freeze the screen and the scale
+    tlsClient.setTimeout(8000);
     mqtt.setClient(tlsClient);
   } else {
     mqtt.setClient(plainClient);
@@ -522,6 +546,8 @@ void commands() {
   } else if (line == "i2c") {
     i2cScan();
   } else if (line == "net") {
+    Serial.printf("Wi-Fi \"%s\" (%s), signal %d dBm, %d drops (last reason %d), started after %s, up %lu s\n",
+                  WiFi.SSID().c_str(), WiFi.BSSIDstr().c_str(), WiFi.RSSI(), wifiDrops, wifiWhy, bootWhy, millis() / 1000);
     Serial.printf("%s, IP %s, MQTT %s (%s:%s, device %s)\n", onRouter ? "On the router" : "Own Wi-Fi",
                   (onRouter ? WiFi.localIP() : WiFi.softAPIP()).toString().c_str(),
                   mqtt.connected() ? "connected" : "not connected", mqttHost, mqttPort, deviceId);
@@ -567,12 +593,42 @@ void setup() {
   if (factor == 1) Serial.println("Not calibrated yet: send t with the hook empty, then hang a known weight and send c <grams>");
 
   bool forget = digitalRead(PIN_TARE) == LOW;   // tare button held at power-on: forget the Wi-Fi
+  bootWhy = resetName();
+  Serial.printf("Started after: %s\n", bootWhy);
+  WiFi.onEvent([](WiFiEvent_t, WiFiEventInfo_t info) {
+    wifiDrops++;
+    wifiWhy = info.wifi_sta_disconnected.reason;
+    if (!wifiLostAt) wifiLostAt = millis() | 1;
+    Serial.printf("Wi-Fi lost (reason %d)\n", wifiWhy);
+  }, ARDUINO_EVENT_WIFI_STA_DISCONNECTED);
+
   setupNetwork(forget);
+  wifiDrops = 0;   // drops while joining at start do not count
   setupWeb();
   setupMqtt();
+
+  // If the loop ever stops for 30 s, restart rather than sit frozen on the last screen.
+  esp_task_wdt_config_t wdt = { .timeout_ms = 30000, .idle_core_mask = 0, .trigger_panic = true };
+  esp_task_wdt_reconfigure(&wdt);
+  esp_task_wdt_add(NULL);
+}
+
+// Rejoin the router when the Wi-Fi drops; restart if it stays away for 3 minutes.
+void wifiWatch() {
+  if (!onRouter) return;
+  if (WiFi.status() == WL_CONNECTED) {
+    if (wifiLostAt) { Serial.printf("Wi-Fi back, %s\n", WiFi.localIP().toString().c_str()); wifiLostAt = 0; }
+    return;
+  }
+  if (!wifiLostAt) wifiLostAt = millis() | 1;
+  static unsigned long lastTry = 0;
+  if (millis() - lastTry > 15000) { lastTry = millis(); Serial.println("Wi-Fi: trying again"); WiFi.reconnect(); }
+  if (millis() - wifiLostAt > 180000) { Serial.println("Wi-Fi away for 3 minutes: restarting"); delay(100); ESP.restart(); }
 }
 
 void loop() {
+  esp_task_wdt_reset();
+  wifiWatch();
   if (!onRouter) dns.processNextRequest();
   server.handleClient();
   mqttLoop();
@@ -585,7 +641,8 @@ void loop() {
     delay(30);
     if (digitalRead(PIN_TARE) == LOW) {
       tare("the button");
-      while (digitalRead(PIN_TARE) == LOW) delay(10);
+      unsigned long held = millis();   // wait for release, but never hang on a stuck button
+      while (digitalRead(PIN_TARE) == LOW && millis() - held < 5000) delay(10);
     }
   }
 
