@@ -1,0 +1,571 @@
+<title>مراقب كيس المغذي</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Arabic:wght@400;500;600&family=Reem+Kufi:wght@500;600&display=swap">
+<style>
+/* Layout: the device fills the sheet, a parts ledger runs down the reading edge, controls sit on the model. */
+:root {
+  --bg: #e6ecea; --panel: #f3f6f4; --ink: #12302f; --muted: #4b6462;
+  --line: #c5d2cf; --accent: #0b6e69; --on-accent: #f3f6f4;
+  --warn: #b3261e; --ok: #1e7a46; --tint: #d9e7e3;
+  --stage: #1f302e; --stage-ink: #c3d5d1;
+  --display: "Reem Kufi", "IBM Plex Sans Arabic", "Segoe UI", Tahoma, sans-serif;
+  --body: "IBM Plex Sans Arabic", "Segoe UI", Tahoma, sans-serif;
+  --data: "IBM Plex Mono", Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f1918; --panel: #152220; --ink: #e3eeeb; --muted: #9db3af;
+    --line: #2b3d3a; --accent: #4fc3b8; --on-accent: #0f1918;
+    --warn: #f08a7e; --ok: #6fd199; --tint: #1e3330; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0f1918; --panel: #152220; --ink: #e3eeeb; --muted: #9db3af;
+  --line: #2b3d3a; --accent: #4fc3b8; --on-accent: #0f1918;
+  --warn: #f08a7e; --ok: #6fd199; --tint: #1e3330; color-scheme: dark;
+}
+html, body { height: 100%; }
+body { background: var(--bg); color: var(--ink); font-family: var(--body); font-size: 15px; line-height: 1.6; }
+::selection { background: var(--accent); color: var(--on-accent); }
+.app { display: grid; grid-template-columns: 360px minmax(0, 1fr); height: 100%; min-height: 0; }
+.ledger {
+  color: var(--ink); background: var(--panel); border-inline-end: 1px solid var(--line);
+  overflow-y: auto; padding-block: 24px;
+  padding-left: max(20px, env(safe-area-inset-left, 0px));
+  padding-right: max(20px, env(safe-area-inset-right, 0px));
+  scrollbar-color: var(--line) transparent; scrollbar-width: thin;
+}
+h1 { font-family: var(--display); font-weight: 600; font-size: 28px; line-height: 1.25; margin: 0; text-wrap: balance; }
+.lede { color: var(--muted); margin: 8px 0 0; }
+h2 { font-size: 15px; font-weight: 600; margin: 28px 0 8px; display: flex; justify-content: space-between; align-items: baseline; }
+h2 span { color: var(--muted); font-weight: 400; font-family: var(--data); font-size: 13px; }
+.parts { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--line); }
+.parts li { border-bottom: 1px solid var(--line); }
+.parts button {
+  all: unset; box-sizing: border-box; display: block; width: 100%; cursor: pointer;
+  padding: 9px 10px; border-radius: 4px;
+}
+.parts button:hover { background: var(--tint); }
+.parts button:focus-visible, .seg button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.parts button[aria-pressed="true"] { background: var(--tint); }
+.parts b { font-weight: 500; }
+.parts p { margin: 3px 0 0; color: var(--muted); font-size: 14px; display: none; }
+.parts button[aria-pressed="true"] p { display: block; }
+.note { color: var(--muted); font-size: 13.5px; margin: 20px 0 0; }
+
+.stage { background: var(--stage); position: relative; min-width: 0; min-height: 0; overflow: hidden; }
+canvas { display: block; width: 100%; height: 100%; touch-action: none; cursor: grab; }
+canvas:active { cursor: grabbing; }
+.tag {
+  position: absolute; top: 0; left: 0; pointer-events: none; white-space: nowrap;
+  background: var(--ink); color: var(--bg); font-size: 13.5px; font-weight: 500;
+  padding: 3px 10px; border-radius: 4px; box-shadow: 0 4px 12px rgba(10, 30, 30, .22);
+}
+.bar {
+  color: var(--ink); position: absolute; bottom: 16px; left: 16px; right: 16px;
+  display: flex; flex-wrap: wrap; gap: 12px 24px; align-items: center; justify-content: space-between;
+  background: var(--panel); border-radius: 6px; padding: 10px 14px;
+  box-shadow: 0 6px 18px rgba(10, 30, 30, .12);
+}
+.seg { display: flex; gap: 2px; background: var(--tint); padding: 2px; border-radius: 5px; }
+.seg button {
+  all: unset; cursor: pointer; padding: 5px 14px; border-radius: 4px; font-size: 14px; font-weight: 500; color: var(--muted);
+}
+.seg button:hover { color: var(--ink); }
+.seg button[aria-pressed="true"] { background: var(--accent); color: var(--on-accent); }
+.level { display: flex; align-items: center; gap: 12px; flex: 1 1 280px; min-width: 0; }
+.level label { font-size: 14px; color: var(--muted); white-space: nowrap; }
+.level input { flex: 1; min-width: 80px; accent-color: var(--accent); }
+.level output { font-family: var(--data); font-size: 14px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+#state { font-size: 14px; font-weight: 600; color: var(--ok); white-space: nowrap; min-width: 92px; }
+#state.low, #state.empty { color: var(--warn); }
+.hint { position: absolute; top: 14px; left: 16px; color: var(--stage-ink); font-size: 13.5px; }
+.fail { position: absolute; inset: 0; display: grid; place-items: center; padding: 24px; text-align: center; color: var(--muted); }
+
+@media (max-width: 860px) {
+  html, body { height: auto; }
+  .app { grid-template-columns: minmax(0, 1fr); height: auto; }
+  .stage { order: -1; height: 68svh; min-height: 420px; }
+  .ledger { border-inline-end: 0; border-top: 1px solid var(--line); overflow: visible; }
+  .hint { display: none; }
+  .bar { bottom: 10px; left: 10px; right: 10px; padding: 8px 10px; }
+}
+@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto; } }
+</style>
+
+<div class="app" dir="rtl" lang="ar">
+  <aside class="ledger">
+    <h1>مراقب كيس المغذي</h1>
+    <p class="lede">جهاز ينعلق على خطاف أي ستاند موجود، والكيس ينعلق تحته. يزن الكيس ويعرف كم باقي وبأي سرعة ينزل.</p>
+    <h2>تحتاج تشتريها <span id="countBuy"></span></h2>
+    <ul class="parts" id="listBuy"></ul>
+    <h2>عندك <span id="countHave"></span></h2>
+    <ul class="parts" id="listHave"></ul>
+    <p class="note">الأبعاد تقريبية. طول الـload cell مو مذكور بالموقع، فقيسه قبل ما تشتري الصندوق. الأرقام على الشاشة تجربة توضيحية بسرعة 100 مل/ساعة.</p>
+  </aside>
+  <main class="stage" id="stage">
+    <canvas id="c" aria-label="نموذج ثلاثي الأبعاد للجهاز المعلق وقطعه"></canvas>
+    <div class="tag" id="tag" hidden></div>
+    <div class="hint">اسحب للتدوير، وكبّر بعجلة الماوس، واضغط أي قطعة</div>
+    <div class="bar">
+      <div class="seg" role="group" aria-label="طريقة العرض">
+        <button type="button" data-mode="clear" aria-pressed="true">شفاف</button>
+        <button type="button" data-mode="solid" aria-pressed="false">مسكّر</button>
+        <button type="button" data-mode="exploded" aria-pressed="false">مفكك</button>
+      </div>
+      <div class="level">
+        <label for="ml">الباقي بالكيس</label>
+        <input id="ml" type="range" min="0" max="500" step="5" value="320">
+        <output id="mlOut" for="ml" dir="ltr">320 ml</output>
+      </div>
+      <div id="state" role="status">طبيعي</div>
+    </div>
+  </main>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script>
+(function () {
+  const PARTS = [
+    { id: 'eye', name: 'حلقة التعليق العلوية', buy: 1, d: 'برغي عين ينعلق على خطاف الستاند. لازم يكون فوق الخطاف السفلي بالضبط حتى يبقى الجهاز أفقي.' },
+    { id: 'frame', name: 'الإطار المعدني C', buy: 1, d: 'شريحة 3 ملم مطوية. تشيل كل الوزن، والصندوق البلاستيك بس معلق عليها.' },
+    { id: 'hook', name: 'الخطاف السفلي', buy: 1, d: 'ينربط بالطرف الحر من الـload cell، ويطلع من فتحة واسعة بأسفل الصندوق بدون ما يلمسها.' },
+    { id: 'box', name: 'الصندوق', buy: 1, d: 'صندوق بلاستك 23x18x10 سم. ما يشيل حمل، بس يحمي الإلكترونيات.' },
+    { id: 'perf', name: 'لوحة اللحام', buy: 1, d: 'بدل البريد بورد بالنسخة النهائية، لأن الأسلاك تتحرك ويا الجهاز المعلق.' },
+    { id: 'power', name: 'سلك USB وشاحن 5V', buy: 1, d: 'يدخل من جنب الصندوق للـESP32. وزنه على الجهة الثابتة فما يأثر على القياس.' },
+    { id: 'switch', name: 'سويچ التشغيل', buy: 1, d: 'زر ثابت 12 ملم على الواجهة.' },
+    { id: 'bag', name: 'كيس 500 مل مع جهاز التنقيط', buy: 1, d: 'للتجربة بماي. 1 مل تقريباً يساوي 1 غرام.' },
+    { id: 'cell', name: 'Load cell', d: 'القلب. طرفه الأيسر ثابت على الإطار والأيمن حر، وينحني شوية تحت الوزن. السهم عليه يتجه للأرض.' },
+    { id: 'hx', name: 'HX711', d: 'يكبّر إشارة الـload cell ويحولها لرقم. ينربط بـE+ E- A+ A-.' },
+    { id: 'esp', name: 'ESP32', d: 'يقرا الوزن، يحسب الباقي والسرعة، ويدز التنبيه على الـWi-Fi.' },
+    { id: 'oled', name: 'شاشة OLED', d: 'تعرض الباقي بالمل والسرعة والوقت المتبقي.' },
+    { id: 'buzzer', name: 'البزر', d: 'يصفر لمن يقل الباقي عن 100 مل أو يتوقف النزول.' },
+    { id: 'leds', name: 'الضوء الأخضر والأحمر', d: 'أخضر طبيعي، وأحمر قرب يخلص. كل ضو وياه مقاومة 220 أوم.' },
+    { id: 'tare', name: 'زر التصفير', d: 'يصفّر الميزان قبل ما تعلق الكيس.' }
+  ];
+  const byId = {}; PARTS.forEach(p => byId[p.id] = p);
+  const $ = id => document.getElementById(id);
+  const buy = PARTS.filter(p => p.buy), have = PARTS.filter(p => !p.buy);
+  $('countBuy').textContent = buy.length; $('countHave').textContent = have.length;
+  const fill = (el, arr) => arr.forEach(p => {
+    const li = document.createElement('li'), b = document.createElement('button');
+    b.type = 'button'; b.dataset.part = p.id; b.setAttribute('aria-pressed', 'false');
+    const n = document.createElement('b'); n.textContent = p.name;
+    const t = document.createElement('p'); t.textContent = p.d;
+    b.append(n, t); li.append(b); el.append(li);
+  });
+  fill($('listBuy'), buy); fill($('listHave'), have);
+
+  const stage = $('stage');
+  const fail = msg => { const d = document.createElement('div'); d.className = 'fail'; d.textContent = msg; stage.append(d); };
+  if (!window.THREE || !THREE.OrbitControls) return fail('ما انفتح النموذج لأن مكتبة الرسم ما تحملت. حدّث الصفحة.');
+
+  const T = THREE;
+  let renderer;
+  try {
+    renderer = new T.WebGLRenderer({ canvas: $('c'), antialias: true, alpha: true, preserveDrawingBuffer: true });
+  } catch (e) { return fail('المتصفح ما يدعم WebGL، فما يگدر يعرض النموذج.'); }
+  const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+  renderer.outputEncoding = T.sRGBEncoding;
+  renderer.toneMapping = T.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = .86;
+  renderer.localClippingEnabled = true;
+
+  const scene = new T.Scene();
+  const camera = new T.PerspectiveCamera(26, 1, 1, 900);
+  const controls = new T.OrbitControls(camera, renderer.domElement);
+  controls.enableDamping = true; controls.dampingFactor = .08;
+  controls.enablePan = false; controls.minDistance = 30; controls.maxDistance = 420;
+  const TARGET = new T.Vector3(-3, -17, 0);
+  controls.target.copy(TARGET);
+
+  const pm = new T.PMREMGenerator(renderer);
+  const es = new T.Scene(); es.background = new T.Color(0x3c4644);
+  [[0, 40, 0, 80, 4, 80, 4.5], [50, 8, 30, 4, 40, 50, 2.2], [-50, 0, 30, 4, 50, 30, 1.2]].forEach(a => {
+    const lm = new T.MeshBasicMaterial({ color: new T.Color().setScalar(a[6]) });
+    const l = new T.Mesh(new T.BoxGeometry(a[3], a[4], a[5]), lm); l.position.set(a[0], a[1], a[2]); es.add(l);
+  });
+  scene.environment = pm.fromScene(es, .03).texture;
+  const key = new T.DirectionalLight(0xffffff, .55); key.position.set(-30, 50, 60); scene.add(key);
+
+  const root = new T.Group(); scene.add(root);
+  const groups = {};
+  const part = id => { const g = new T.Group(); g.userData.id = id; root.add(g); groups[id] = g; return g; };
+  const mat = (c, r = .55, m = 0, o = {}) => new T.MeshStandardMaterial(Object.assign({ color: c, roughness: r, metalness: m }, o));
+  const add = (g, geo, m, x = 0, y = 0, z = 0) => { const k = new T.Mesh(geo, m); k.position.set(x, y, z); g.add(k); return k; };
+  const box = (g, w, h, d, m, x, y, z) => add(g, new T.BoxGeometry(w, h, d), m, x, y, z);
+  const cyl = (r, h, s = 24) => new T.CylinderGeometry(r, r, h, s);
+  const cylZ = (r, h) => cyl(r, h).rotateX(Math.PI / 2);
+  const tube = (pts, r, s = 40) => new T.TubeGeometry(new T.CatmullRomCurve3(pts.map(p => new T.Vector3(...p))), s, r, 10, false);
+  const rr = (w, h, r) => {
+    const s = new T.Shape(), x = -w / 2, y = -h / 2;
+    s.moveTo(x + r, y); s.lineTo(x + w - r, y); s.quadraticCurveTo(x + w, y, x + w, y + r);
+    s.lineTo(x + w, y + h - r); s.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+    s.lineTo(x + r, y + h); s.quadraticCurveTo(x, y + h, x, y + h - r);
+    s.lineTo(x, y + r); s.quadraticCurveTo(x, y, x + r, y); return s;
+  };
+  const canvasTex = (w, h, draw) => {
+    const c = document.createElement('canvas'); c.width = w; c.height = h;
+    const x = c.getContext('2d'); draw(x, w, h);
+    const t = new T.CanvasTexture(c); t.encoding = T.sRGBEncoding; t.anisotropy = 8; return t;
+  };
+
+  const steel = () => mat(0xc4ccca, .32, .95);
+  const alu = () => mat(0xd3d8d6, .42, .85);
+  const dark = () => mat(0x1b2120, .5, .2);
+  const shellParts = [];
+
+  /* Box: an open tray, the rod and eye pass through holes in its top and bottom. */
+  const gBox = part('box');
+  const shellM = () => { const m = mat(0xc3ceca, .55, 0, { transparent: true }); shellParts.push(m); return m; };
+  box(gBox, 23, 18, .3, mat(0x93a3a0, .6), 0, 0, -4.85);
+  const wallXZ = hx => {
+    const s = rr(23, 10, .2), h = new T.Path(); h.absarc(hx, 0, 1, 0, Math.PI * 2, true); s.holes.push(h);
+    return new T.ExtrudeGeometry(s, { depth: .3, bevelEnabled: false, curveSegments: 24 }).rotateX(Math.PI / 2);
+  };
+  add(gBox, wallXZ(6), shellM(), 0, 9, 0);
+  add(gBox, wallXZ(6), shellM(), 0, -8.7, 0);
+  box(gBox, .3, 18, 10, shellM(), -11.35, 0, 0);
+  box(gBox, .3, 18, 10, shellM(), 11.35, 0, 0);
+
+  /* Cover: carries the panel parts. */
+  const gCover = part('cover'); gCover.userData.id = 'box';
+  const coverM = mat(0xc9d3cf, .5, 0, { transparent: true });
+  const plate = rr(23, 18, .4);
+  add(gCover, new T.ExtrudeGeometry(plate, { depth: .3, bevelEnabled: false }), coverM, 0, 0, 5);
+
+  /* Frame and its standoffs to the back wall. */
+  const gFrame = part('frame');
+  const fm = steel();
+  box(gFrame, 16.4, .4, 3, fm, -.7, 7.2, 0);
+  box(gFrame, .4, 5.9, 3, fm, -8.7, 4.45, 0);
+  box(gFrame, 6.4, .4, 3, fm, -5.7, 1.7, 0);
+  [-3, 3].forEach(x => add(gFrame, cylZ(.35, 3.2), steel(), x, 7.2, -3.1));
+  [[-6.5], [-4.5]].forEach(a => add(gFrame, cyl(.5, .3, 6), dark(), a[0], 1.35, 0));
+
+  /* Load cell: single-point beam with the double-bore cut. */
+  const gCell = part('cell');
+  const cs = rr(15, 3.6, .12), bore = new T.Path();
+  bore.absarc(-1.5, 0, .95, Math.PI / 2, Math.PI * 1.5, false);
+  bore.lineTo(1.5, -.95);
+  bore.absarc(1.5, 0, .95, -Math.PI / 2, Math.PI / 2, false);
+  bore.lineTo(-1.5, .95);
+  cs.holes.push(bore);
+  const cg = new T.ExtrudeGeometry(cs, { depth: 2.9, bevelEnabled: true, bevelSize: .05, bevelThickness: .05, bevelSegments: 2, curveSegments: 28 });
+  cg.translate(0, 0, -1.45);
+  add(gCell, cg, alu(), -.5, 4.4, 0);
+  box(gCell, 4.5, .7, 3, steel(), -5.25, 2.25, 0);
+  box(gCell, 3, .7, 3, steel(), 5.5, 2.25, 0);
+  const sticker = new T.Mesh(new T.PlaneGeometry(3.4, 2.2), new T.MeshStandardMaterial({
+    roughness: .5,
+    map: canvasTex(340, 220, (x, w, h) => {
+      x.fillStyle = '#f4f4f0'; x.fillRect(0, 0, w, h);
+      x.fillStyle = '#1b2120'; x.font = '600 50px monospace'; x.textAlign = 'center'; x.fillText('SC601', 170, 70);
+      x.beginPath(); x.moveTo(150, 95); x.lineTo(190, 95); x.lineTo(190, 145); x.lineTo(218, 145);
+      x.lineTo(170, 205); x.lineTo(122, 145); x.lineTo(150, 145); x.closePath(); x.fill();
+    })
+  }));
+  sticker.position.set(4.6, 4.4, 1.52); gCell.add(sticker);
+
+  /* Top eye bolt. */
+  const gEye = part('eye');
+  add(gEye, cyl(.32, 4.2), steel(), 6, 9, 0);
+  add(gEye, new T.TorusGeometry(1.35, .27, 16, 48), steel(), 6, 12.4, 0);
+  add(gEye, cyl(.6, .35, 6), steel(), 6, 7.6, 0);
+  add(gEye, cyl(.6, .35, 6), steel(), 6, 6.82, 0);
+
+  /* The existing stand: shown ghosted, it is not part of the build. */
+  const gStand = new T.Group(); root.add(gStand);
+  const ghost = mat(0x8fa09c, .5, .5, { transparent: true, opacity: .4 });
+  add(gStand, tube([[6, 34, -9], [6, 27, -8.8], [6, 19, -4.5], [6, 14.2, -1.6], [6, 12.75, 0], [6, 13.8, 1.7], [6, 16, 2.2]], .3, 60), ghost);
+
+  /* Bottom hook on the free end. */
+  const gHook = part('hook');
+  add(gHook, cyl(.3, 12.6), steel(), 6, -4.4, 0);
+  add(gHook, cyl(.6, .35, 6), steel(), 6, 1.72, 0);
+  add(gHook, tube([[6, -10.6, 0], [6, -12, -.9], [6, -13.5, -.3], [6, -13.4, 1], [6, -12.1, 1.2]], .24), steel());
+
+  /* Perfboard with the ESP32 and HX711 standing off the back wall. */
+  const gPerf = part('perf');
+  box(gPerf, 15, 9, .16, mat(0xb78b4d, .7), -2.8, -3.6, -3.6);
+  const pads = mat(0xc9a35f, .35, .8);
+  const padGeo = new T.CylinderGeometry(.06, .06, .02, 6).rotateX(Math.PI / 2);
+  const inst = new T.InstancedMesh(padGeo, pads, 1800); let n = 0; const dm = new T.Object3D();
+  for (let i = 0; i < 60 && n < 1800; i++) for (let j = 0; j < 36 && n < 1800; j++) {
+    dm.position.set(-10.2 + i * .254, -8 + j * .254, -3.51); dm.updateMatrix(); inst.setMatrixAt(n++, dm.matrix);
+  }
+  gPerf.add(inst);
+  [[-9.8, -7.6], [4.2, -7.6], [-9.8, .4], [4.2, .4]].forEach(p => add(gPerf, cylZ(.25, 1), steel(), p[0], p[1], -4.2));
+
+  const gEsp = part('esp');
+  box(gEsp, 5.2, 2.8, .16, mat(0x1b2730, .55), -6.2, -5.4, -3);
+  box(gEsp, 1.8, 1.6, .35, mat(0xbdc4c6, .3, .9), -7.3, -5.4, -2.75);
+  box(gEsp, .9, .75, .3, mat(0xb9bec0, .3, .9), -9, -5.4, -2.8);
+  box(gEsp, 5.2, .25, .55, dark(), -6.2, -4.1, -3.3);
+  box(gEsp, 5.2, .25, .55, dark(), -6.2, -6.7, -3.3);
+
+  const gHx = part('hx');
+  box(gHx, 3.4, 2.1, .14, mat(0x14713f, .5), 0, -3.2, -3.2);
+  box(gHx, 1, .6, .2, dark(), 0, -3.2, -3.05);
+  box(gHx, .25, 1.5, .4, dark(), -1.5, -3.2, -3.35);
+  box(gHx, .25, 1.1, .4, dark(), 1.5, -3.2, -3.35);
+
+  /* Panel. */
+  const gOled = part('oled');
+  box(gOled, 2.8, 2.8, .14, mat(0x1b3a6b, .5), -4.5, 3.4, 4.88);
+  box(gOled, 2.6, 1.5, .1, mat(0x0a0d10, .35), -4.5, 3.5, 5.38);
+  let oledDraw = null;
+  const oledCanvas = document.createElement('canvas'); oledCanvas.width = 512; oledCanvas.height = 256;
+  const oledTex = new T.CanvasTexture(oledCanvas); oledTex.encoding = T.sRGBEncoding; oledTex.anisotropy = 8;
+  const screen = new T.Mesh(new T.PlaneGeometry(2.2, 1.1), new T.MeshBasicMaterial({ map: oledTex }));
+  screen.position.set(-4.5, 3.5, 5.44); gOled.add(screen);
+  oledDraw = (ml, st) => {
+    const x = oledCanvas.getContext('2d');
+    x.fillStyle = '#04070a'; x.fillRect(0, 0, 512, 256);
+    x.fillStyle = st === 'normal' ? '#9fe8ff' : '#ffb3a6';
+    x.textAlign = 'left'; x.font = '600 100px monospace'; x.fillText(ml + ' ml', 22, 100);
+    const mins = Math.round(ml * .6), hh = Math.floor(mins / 60), mm = String(mins % 60).padStart(2, '0');
+    x.font = '500 48px monospace';
+    x.fillText(ml > 0 ? '100 ml/h' : 'EMPTY', 22, 164);
+    x.textAlign = 'right'; x.fillText(hh + ':' + mm, 490, 164);
+    x.strokeStyle = x.fillStyle; x.lineWidth = 4; x.strokeRect(22, 192, 468, 36);
+    x.fillRect(28, 198, 456 * ml / 500, 24);
+    oledTex.needsUpdate = true;
+  };
+
+  const gBuz = part('buzzer');
+  add(gBuz, cylZ(1.15, 1), dark(), 4, 3.4, 5.1);
+  add(gBuz, cylZ(.16, .05), mat(0x05070a, .9), 4, 3.4, 5.62);
+
+  const gLed = part('leds');
+  const ledMat = (c, e) => mat(c, .25, 0, { emissive: e, emissiveIntensity: 0 });
+  const lg = ledMat(0x2f9a57, 0x37ff86), lr = ledMat(0xb0322a, 0xff3a2e);
+  const dome = new T.SphereGeometry(.42, 24, 16);
+  const lgM = add(gLed, dome, lg, -7.5, -3.4, 5.42), lrM = add(gLed, dome, lr, -4.2, -3.4, 5.42);
+  lgM.userData.keep = lrM.userData.keep = true;
+  [-7.5, -4.2].forEach(x => add(gLed, cylZ(.62, .16), steel(), x, -3.4, 5.34));
+
+  const gTare = part('tare');
+  add(gTare, cylZ(.85, .25), steel(), 1, -3.4, 5.42);
+  add(gTare, cylZ(.58, .45), mat(0x1c5f8c, .4), 1, -3.4, 5.5);
+
+  const gSw = part('switch');
+  add(gSw, cylZ(.75, .3), steel(), 6.5, -3.4, 5.45);
+  add(gSw, cylZ(.5, .42), mat(0x9a9f9f, .3, .9), 6.5, -3.4, 5.52);
+
+  /* Bag. */
+  const gBag = part('bag');
+  const bagShape = () => {
+    const s = new T.Shape();
+    s.moveTo(-4.5, -14.5); s.lineTo(4.5, -14.5); s.quadraticCurveTo(6, -14.5, 6, -16);
+    s.lineTo(6, -29); s.quadraticCurveTo(6, -32, 2.2, -34); s.lineTo(-2.2, -34);
+    s.quadraticCurveTo(-6, -32, -6, -29); s.lineTo(-6, -16); s.quadraticCurveTo(-6, -14.5, -4.5, -14.5);
+    return s;
+  };
+  const bagGeo = (grow) => {
+    const g = new T.ExtrudeGeometry(bagShape(), { depth: 1.3, bevelEnabled: true, bevelSize: .5, bevelThickness: .7, bevelSegments: 5, curveSegments: 18 });
+    g.translate(0, 24.25, -.65); g.scale(grow, grow, grow); g.translate(6, -24.25, 0); return g;
+  };
+  const bagM = mat(0xd5e6e6, .18, 0, { transparent: true, opacity: .24, depthWrite: false, side: T.DoubleSide });
+  const bagMesh = add(gBag, bagGeo(1), bagM); bagMesh.renderOrder = 3;
+  const clip = new T.Plane(new T.Vector3(0, -1, 0), 0);
+  const liqM = mat(0x3fa9c9, .12, 0, { transparent: true, opacity: .72, clippingPlanes: [clip], depthWrite: false });
+  const liq = add(gBag, bagGeo(.93), liqM); liq.renderOrder = 2;
+  const tab = rr(5, 2.2, .3), th = new T.Path(); th.absarc(0, .4, .5, 0, Math.PI * 2, true); tab.holes.push(th);
+  add(gBag, new T.ExtrudeGeometry(tab, { depth: .12, bevelEnabled: false, curveSegments: 24 }), mat(0xe2eded, .3, 0, { transparent: true, opacity: .75 }), 6, -13.6, -.06);
+  const ticks = new T.Mesh(new T.PlaneGeometry(3, 18.6), new T.MeshBasicMaterial({
+    transparent: true, depthWrite: false,
+    map: canvasTex(150, 930, (x, w, h) => {
+      x.fillStyle = '#e4f4f7'; x.strokeStyle = '#e4f4f7'; x.lineWidth = 3; x.font = '500 30px monospace';
+      for (let i = 0; i <= 5; i++) {
+        const y = h - 8 - (h - 16) * i / 5;
+        x.beginPath(); x.moveTo(0, y); x.lineTo(46, y); x.stroke();
+        if (i) x.fillText(String(i * 100), 56, y + 10);
+      }
+    })
+  }));
+  ticks.position.set(2, -24.4, 1.62); ticks.renderOrder = 4; gBag.add(ticks);
+  const clear = () => mat(0xeaf3f3, .15, 0, { transparent: true, opacity: .42, depthWrite: false });
+  add(gBag, cyl(.42, 2.2), mat(0xe9eeee, .35), 6, -35.2, 0);
+  add(gBag, cyl(.85, 5.4, 28), clear(), 6, -39, 0);
+  const pool = add(gBag, cyl(.76, 1.8, 28), mat(0x3fa9c9, .15, 0, { transparent: true, opacity: .7 }), 6, -40.7, 0);
+  add(gBag, tube([[6, -41.7, 0], [6.3, -46, 0], [9, -50, 2], [10, -55, 2], [7, -60, 0]], .2), mat(0xe2ecec, .25, 0, { transparent: true, opacity: .75 }));
+  box(gBag, 1.3, 2.4, 1.1, mat(0x2f6fd0, .45), 7.3, -47.3, .6);
+  const drop = add(gBag, new T.SphereGeometry(.17, 12, 10), mat(0x7cc9dc, .12), 6, -37, 0);
+
+  /* Wires, rebuilt when the exploded view moves their ends. */
+  const wires = [];
+  const wire = (g1, p1, g2, p2, color, r = .075, bow = [0, -.6, .4]) => {
+    const m = new T.Mesh(new T.BufferGeometry(), mat(color, .55));
+    root.add(m); wires.push({ m, g1, p1: new T.Vector3(...p1), g2, p2: new T.Vector3(...p2), r, bow: new T.Vector3(...bow) });
+  };
+  const rebuildWires = () => wires.forEach(w => {
+    const a = w.p1.clone().add(w.g1.position), b = w.p2.clone().add(w.g2.position);
+    const c = new T.CatmullRomCurve3([a, a.clone().lerp(b, .33).add(w.bow), a.clone().lerp(b, .66).add(w.bow), b]);
+    w.m.geometry.dispose(); w.m.geometry = new T.TubeGeometry(c, 22, w.r, 7, false);
+  });
+  wire(gCell, [-8, 4.9, .6], gHx, [-1.4, -2.6, -3.3], 0xd23a33);
+  wire(gCell, [-8, 4.5, .2], gHx, [-1.4, -3, -3.3], 0x202423);
+  wire(gCell, [-8, 4.1, -.2], gHx, [-1.4, -3.4, -3.3], 0x3f9a44);
+  wire(gCell, [-8, 3.7, -.6], gHx, [-1.4, -3.8, -3.3], 0xf1f3f1);
+  wire(gHx, [1.5, -3, -3.2], gEsp, [-3.8, -4.1, -3.1], 0xd23a33, .06, [0, -2.2, .7]);
+  wire(gHx, [1.5, -3.4, -3.2], gEsp, [-3.8, -4.4, -3.1], 0x202423, .06, [0, -2.2, .8]);
+  wire(gHx, [1.5, -3.8, -3.2], gEsp, [-3.8, -4.7, -3.1], 0x6c5fd3, .06, [0, -2.2, .9]);
+  wire(gHx, [1.5, -2.6, -3.2], gEsp, [-3.8, -5, -3.1], 0x1c9b8c, .06, [0, -2.2, 1]);
+  wire(gEsp, [-5, -4, -3.1], gOled, [-4.8, 2.2, 4.8], 0x3a7fd1, .06, [.2, 0, 0]);
+  wire(gEsp, [-5.4, -4, -3.1], gOled, [-4.2, 2.2, 4.8], 0xc94f8c, .06, [-.2, 0, 0]);
+  wire(gEsp, [-4.6, -4, -3.1], gBuz, [4, 3, 4.8], 0xc27a18, .06, [0, 1, 0]);
+  wire(gEsp, [-6.5, -6.8, -3.1], gLed, [-7.5, -3.4, 5.1], 0x3f9a44, .06, [-.5, -1, 0]);
+  wire(gEsp, [-6, -6.8, -3.1], gLed, [-4.2, -3.4, 5.1], 0xd23a33, .06, [0, -1, 0]);
+  wire(gEsp, [-5.5, -6.8, -3.1], gTare, [1, -3.4, 5.1], 0x888f8c, .06, [.5, -1, 0]);
+  wire(gBox, [-11.6, -5.4, 0], gEsp, [-9.45, -5.4, -2.8], 0x2a2f2e, .17, [0, -.5, -.6]);
+
+  const gPower = part('power');
+  add(gPower, tube([[-11.5, -5.4, 0], [-14.5, -6, 0], [-18, -11, 1], [-19.5, -18, 0], [-18.5, -28, -1]], .17), dark());
+  add(gPower, cylZ(.55, 1).rotateZ(0).rotateY(Math.PI / 2), dark(), -11.7, -5.4, 0);
+
+  /* Exploded offsets. */
+  const OFFSET = {
+    cover: [0, 0, 19], oled: [0, 0, 19], buzzer: [0, 0, 19], leds: [0, 0, 19], tare: [0, 0, 19], switch: [0, 0, 19],
+    cell: [0, 0, 8], frame: [0, 0, -1], box: [0, 0, -22], power: [0, 0, -22],
+    perf: [0, 0, -11], esp: [0, 0, -8], hx: [0, 0, -8],
+    eye: [0, 9, 0], hook: [0, -6, 0], bag: [0, -13, 0]
+  };
+  const ANCHOR = {
+    eye: [6, 14, 0], frame: [-.7, 7.6, 1.5], hook: [6, -11.5, 0], box: [11.5, 9, 5], perf: [2, -7.5, -3.4], power: [-20, -13, 1],
+    switch: [6.5, -3.4, 5.6], bag: [6, -18, 1.5], cell: [-.5, 6.2, 1.5], hx: [0, -3, -3], esp: [-6.2, -5.4, -2.7],
+    oled: [-4.5, 4.4, 5.4], buzzer: [4, 4.6, 5.6], leds: [-5.8, -3, 5.6], tare: [1, -3, 5.6]
+  };
+  const INSIDE = ['cell', 'hx', 'esp', 'perf', 'frame'];
+
+  const selectable = Object.values(groups);
+  let mode = 'clear', explode = 0, explodeT = 0, shell = .14, shellT = .14, selected = null;
+
+  const setGlow = (id, on) => {
+    const list = id === 'box' ? [gBox, gCover] : [groups[id]];
+    list.forEach(g => g.traverse(o => {
+      if (o.isMesh && o.material.emissive && !o.userData.keep) { o.material.emissive.setHex(on ? 0x0a7a72 : 0); o.material.emissiveIntensity = on ? .55 : 1; }
+    }));
+  };
+  const setMode = m => {
+    mode = m; explodeT = m === 'exploded' ? 1 : 0; shellT = m === 'solid' ? 1 : m === 'clear' ? .14 : .7;
+    document.querySelectorAll('.seg button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.mode === m)));
+    camGoal = TARGET.clone().addScaledVector(DIRS[m], fit * (m === 'exploded' ? 1.28 : 1));
+    if (reduced) { explode = explodeT; shell = shellT; applyExplode(); camera.position.copy(camGoal); camGoal = null; }
+  };
+  const select = id => {
+    if (selected) setGlow(selected, false);
+    selected = id; if (id) setGlow(id, true);
+    document.querySelectorAll('.parts button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.part === id)));
+    if (id && mode === 'solid' && INSIDE.includes(id)) setMode('clear');
+    $('tag').hidden = !id; if (id) $('tag').textContent = byId[id].name;
+  };
+  document.querySelectorAll('.parts button').forEach(b => b.addEventListener('click', () => select(b.dataset.part)));
+  document.querySelectorAll('.seg button').forEach(b => b.addEventListener('click', () => setMode(b.dataset.mode)));
+
+  const ray = new T.Raycaster(), ptr = new T.Vector2(); let down = null;
+  const cv = renderer.domElement;
+  cv.addEventListener('pointerdown', e => { down = [e.clientX, e.clientY]; camGoal = null; });
+  cv.addEventListener('wheel', () => { camGoal = null; }, { passive: true });
+  cv.addEventListener('pointerup', e => {
+    if (!down || Math.hypot(e.clientX - down[0], e.clientY - down[1]) > 5) return;
+    const r = cv.getBoundingClientRect();
+    ptr.set((e.clientX - r.left) / r.width * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+    ray.setFromCamera(ptr, camera);
+    const hits = ray.intersectObjects(selectable, true);
+    for (const h of hits) {
+      let o = h.object; while (o && !o.userData.id) o = o.parent;
+      if (!o) continue;
+      if (o.userData.id === 'box' && shell < .5) continue;
+      select(o.userData.id); return;
+    }
+  });
+
+  let ml = 320;
+  const setLevel = v => {
+    ml = v;
+    const st = ml === 0 ? 'empty' : ml <= 100 ? 'low' : 'normal';
+    $('mlOut').textContent = ml + ' ml';
+    const s = $('state'); s.className = st;
+    s.textContent = st === 'empty' ? 'خلص الكيس' : st === 'low' ? 'قرب يخلص' : 'طبيعي';
+    lg.emissiveIntensity = st === 'normal' ? 2.4 : 0;
+    lr.emissiveIntensity = st === 'normal' ? 0 : 2.6;
+    oledDraw(ml, st);
+    pool.visible = ml > 0;
+  };
+  $('ml').addEventListener('input', e => setLevel(+e.target.value));
+
+  const applyExplode = () => {
+    Object.keys(OFFSET).forEach(id => {
+      const o = OFFSET[id], g = id === 'cover' ? gCover : groups[id];
+      g.position.set(o[0] * explode, o[1] * explode, o[2] * explode);
+    });
+    gStand.position.set(0, 9 * explode, 0);
+    rebuildWires();
+  };
+
+  const DIRS = {
+    clear: new T.Vector3(-.5, .14, 1).normalize(),
+    solid: new T.Vector3(-.5, .14, 1).normalize(),
+    exploded: new T.Vector3(-1, .22, .75).normalize()
+  };
+  let fit = 200, camGoal = null;
+  const resize = () => {
+    const w = stage.clientWidth, h = stage.clientHeight;
+    if (!w || !h) return;
+    renderer.setSize(w, h, false);
+    camera.aspect = w / h;
+    const tan = Math.tan(T.MathUtils.degToRad(camera.fov / 2));
+    const barH = stage.querySelector('.bar').offsetHeight + 24, room = (h - barH) / h;
+    fit = Math.max(82 / (2 * tan), 46 / (2 * tan * camera.aspect)) / room;
+    camera.setViewOffset(w, h, 0, barH / 2, w, h);
+    if (!resize.done) { camera.position.copy(TARGET).addScaledVector(DIRS.clear, fit); resize.done = true; }
+    camera.updateProjectionMatrix();
+  };
+  new ResizeObserver(resize).observe(stage);
+  resize();
+
+  const v = new T.Vector3(), clock = new T.Clock(); let phase = 0, lastExplode = -1;
+  const frame = () => {
+    if (!resize.done) return requestAnimationFrame(frame);
+    const dt = Math.min(clock.getDelta(), .05), k = 1 - Math.exp(-dt * 6);
+    explode += (explodeT - explode) * k; shell += (shellT - shell) * k;
+    if (Math.abs(explodeT - explode) < .001) explode = explodeT;
+    if (explode !== lastExplode) { applyExplode(); lastExplode = explode; }
+    coverM.opacity = shell; coverM.depthWrite = shell > .9;
+    const side = Math.min(1, shell * 1.0 + .08);
+    shellParts.forEach(m => { m.opacity = side; m.depthWrite = side > .9; });
+
+    const by = gBag.position.y;
+    clip.constant = by - 33.6 + 18.8 * ml / 500;
+
+    if (ml > 0 && !reduced) {
+      phase = (phase + dt / 1.6) % 1;
+      drop.visible = phase < .5;
+      drop.position.y = -37 - 3.1 * Math.pow(phase * 2, 2);
+    } else { drop.visible = ml > 0; drop.position.y = -38; }
+
+    if (camGoal) {
+      camera.position.lerp(camGoal, k);
+      if (camera.position.distanceTo(camGoal) < .3) camGoal = null;
+    }
+    controls.update();
+    renderer.render(scene, camera);
+
+    if (selected) {
+      const a = ANCHOR[selected], g = groups[selected];
+      v.set(a[0], a[1], a[2]).add(g.position).project(camera);
+      const W = stage.clientWidth, H = stage.clientHeight, tag = $('tag');
+      const x = Math.max(70, Math.min(W - 70, (v.x + 1) / 2 * W)), y = Math.max(30, Math.min(H - 80, (1 - v.y) / 2 * H - 16));
+      tag.style.transform = 'translate(' + x + 'px,' + y + 'px) translate(-50%,-100%)';
+    }
+    requestAnimationFrame(frame);
+  };
+  setLevel(320);
+  applyExplode();
+  select('cell');
+  frame();
+})();
+</script>

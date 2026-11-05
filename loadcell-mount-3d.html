@@ -1,0 +1,355 @@
+<title>تركيب الـload cell</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Arabic:wght@400;500;600&family=Reem+Kufi:wght@500;600&display=swap">
+<style>
+/* Layout: the load cell close up on a dark stage, the mounting steps down the reading edge. */
+:root {
+  --bg: #e6ecea; --panel: #f3f6f4; --ink: #12302f; --muted: #4b6462;
+  --line: #c5d2cf; --accent: #0b6e69; --on-accent: #f3f6f4; --tint: #d9e7e3;
+  --stage: #1f302e; --stage-ink: #c3d5d1;
+  --display: "Reem Kufi", "IBM Plex Sans Arabic", "Segoe UI", Tahoma, sans-serif;
+  --body: "IBM Plex Sans Arabic", "Segoe UI", Tahoma, sans-serif;
+  --data: "IBM Plex Mono", Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f1918; --panel: #152220; --ink: #e3eeeb; --muted: #9db3af;
+    --line: #2b3d3a; --accent: #4fc3b8; --on-accent: #0f1918; --tint: #1e3330; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0f1918; --panel: #152220; --ink: #e3eeeb; --muted: #9db3af;
+  --line: #2b3d3a; --accent: #4fc3b8; --on-accent: #0f1918; --tint: #1e3330; color-scheme: dark;
+}
+html, body { height: 100%; }
+body { background: var(--bg); color: var(--ink); font-family: var(--body); font-size: 15px; line-height: 1.6; }
+::selection { background: var(--accent); color: var(--on-accent); }
+.app { display: grid; grid-template-columns: 360px minmax(0, 1fr); height: 100%; min-height: 0; }
+.ledger {
+  color: var(--ink); background: var(--panel); border-inline-end: 1px solid var(--line);
+  overflow-y: auto; padding-block: 24px;
+  padding-left: max(20px, env(safe-area-inset-left, 0px));
+  padding-right: max(20px, env(safe-area-inset-right, 0px));
+  scrollbar-color: var(--line) transparent; scrollbar-width: thin;
+}
+h1 { font-family: var(--display); font-weight: 600; font-size: 28px; line-height: 1.25; margin: 0; text-wrap: balance; }
+.lede { color: var(--muted); margin: 8px 0 0; }
+h2 { font-size: 15px; font-weight: 600; margin: 26px 0 8px; }
+.steps { margin: 0; padding: 0; list-style: none; counter-reset: s; border-top: 1px solid var(--line); }
+.steps li { counter-increment: s; border-bottom: 1px solid var(--line); padding: 10px 0; display: grid; grid-template-columns: 26px 1fr; gap: 0 8px; }
+.steps li::before { content: counter(s); font-family: var(--data); font-size: 13px; color: var(--accent); padding-top: 2px; }
+.steps b { font-weight: 500; }
+.steps p { grid-column: 2; margin: 2px 0 0; color: var(--muted); font-size: 14px; }
+.note { color: var(--muted); font-size: 13.5px; margin: 18px 0 0; }
+.note a { color: var(--accent); text-underline-offset: 3px; }
+
+.stage { background: var(--stage); position: relative; min-width: 0; min-height: 0; overflow: hidden; }
+canvas { display: block; width: 100%; height: 100%; touch-action: none; cursor: grab; }
+canvas:active { cursor: grabbing; }
+.lbl {
+  position: absolute; top: 0; left: 0; pointer-events: none; white-space: nowrap;
+  background: var(--panel); color: var(--ink); font-size: 13px; font-weight: 500;
+  padding: 2px 9px; border-radius: 4px; box-shadow: 0 3px 10px rgba(0, 0, 0, .3);
+}
+.lbl.key { background: var(--accent); color: var(--on-accent); }
+.hint { position: absolute; top: 14px; left: 16px; color: var(--stage-ink); font-size: 13.5px; }
+.bar {
+  color: var(--ink); position: absolute; bottom: 16px; left: 16px; right: 16px;
+  display: flex; flex-wrap: wrap; gap: 10px 20px; align-items: center; justify-content: space-between;
+  background: var(--panel); border-radius: 6px; padding: 10px 14px; box-shadow: 0 6px 18px rgba(0, 0, 0, .28);
+}
+.seg { display: flex; gap: 2px; background: var(--tint); padding: 2px; border-radius: 5px; }
+.seg button { all: unset; cursor: pointer; padding: 5px 12px; border-radius: 4px; font-size: 14px; font-weight: 500; color: var(--muted); }
+.seg button:hover { color: var(--ink); }
+.seg button[aria-pressed="true"] { background: var(--accent); color: var(--on-accent); }
+.seg button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.level { display: flex; align-items: center; gap: 10px; flex: 1 1 260px; min-width: 0; }
+.level label { font-size: 14px; color: var(--muted); white-space: nowrap; }
+.level input { flex: 1; min-width: 70px; accent-color: var(--accent); }
+.level output { font-family: var(--data); font-size: 14px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.fail { position: absolute; inset: 0; display: grid; place-items: center; padding: 24px; text-align: center; color: var(--stage-ink); }
+@media (max-width: 860px) {
+  html, body { height: auto; }
+  .app { grid-template-columns: minmax(0, 1fr); height: auto; }
+  .stage { order: -1; height: 72svh; min-height: 480px; }
+  .ledger { border-inline-end: 0; border-top: 1px solid var(--line); overflow: visible; }
+  .hint { display: none; }
+  .bar { bottom: 10px; left: 10px; right: 10px; padding: 8px 10px; }
+}
+</style>
+
+<div class="app" dir="rtl" lang="ar">
+  <aside class="ledger">
+    <h1>تركيب الـload cell</h1>
+    <p class="lede">مثل ما يحدده المصنع: كل طرف ينربط ببرغيين بالفتحتين، وتحت كل طرف فاصل، والوسط ما يلمس شي. الوسط هو اللي ينحني ويقيس.</p>
+    <h2>الخطوات</h2>
+    <ol class="steps">
+      <li><b>قاعدة صلبة</b><p>لوح خشب سميك ما ينحني، مرفوع على قطعتين حتى تدخل رؤوس البراغي من تحته. اللوح بس ينربط بالطاولة بملزمة، مو القطعة.</p></li>
+      <li><b>فاصل تحت الطرف الثابت</b><p>2 ملم أو أكثر، بين اللوح والقطعة. الصفيحة الصغيرة اللي جات ويا القطعة تكفي.</p></li>
+      <li><b>برغيين من تحت اللوح</b><p>يمرن من اللوح والفاصل ويتبرمن بفتحتي الطرف الثابت. براغي قوية، وتشدهن بدون ما تلوي القطعة.</p></li>
+      <li><b>الطرف الحمل برّا حافة اللوح</b><p>الطرف اللي عليه السهم، والسهم متجه للجوه، باتجاه القوة.</p></li>
+      <li><b>فاصل وصفيحة ببرغيين</b><p>تحت الطرف الحمل: فاصل، وتحته صفيحة أو زاوية حديد، وبرغيين من تحت بالفتحتين. هاي "المنصة" بالتصميم الأصلي.</p></li>
+      <li><b>الخطاف بثقب بالصفيحة</b><p>البرغيين بعرض القطعة، فالثقب بالصفيحة يكون برّاهن، باتجاه نهاية الطرف. الخطاف S يمر بيه، وعليه الكيس.</p></li>
+      <li><b>مانع حمل زائد، اختياري</b><p>برغي واقف باللوح تحت القطعة بفراغ حوالي 1 ملم، يوقفها قبل ما تنحني أكثر من حدها.</p></li>
+    </ol>
+    <p class="note">حسب <a href="https://aandd.jp/products/manual/loadcells/lcb27.pdf" target="_blank" rel="noopener">دليل A&amp;D لقطع الـsingle-point</a>. التعليق تحت القطعة مو مذكور بأدلة المصنعين، والقوة على الطرف الحمل تبقى للجوه مثل المنصة. الانحناء بالنموذج مكبّر هواية، والحقيقي أقل من ثلث ملم. الأبعاد تقريبية.</p>
+  </aside>
+  <main class="stage" id="stage">
+    <canvas id="c" aria-label="نموذج ثلاثي الأبعاد لتركيب الـload cell ببراغي على لوح خشب"></canvas>
+    <div id="labels"></div>
+    <div class="hint">اسحب للتدوير، وكبّر بعجلة الماوس</div>
+    <div class="bar">
+      <div class="seg" role="group" aria-label="طريقة العرض">
+        <button type="button" data-mode="built" aria-pressed="true">مركّب</button>
+        <button type="button" data-mode="exploded" aria-pressed="false">مفكك</button>
+        <button type="button" id="names" aria-pressed="true">الأسماء</button>
+      </div>
+      <div class="level">
+        <label for="w">الوزن المعلق</label>
+        <input id="w" type="range" min="0" max="1000" step="10" value="550">
+        <output id="wOut" for="w" dir="ltr">550 g</output>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script>
+(function () {
+  const $ = id => document.getElementById(id);
+  const stage = $('stage');
+  const fail = msg => { const d = document.createElement('div'); d.className = 'fail'; d.textContent = msg; stage.append(d); };
+  if (!window.THREE || !THREE.OrbitControls) return fail('ما انفتح النموذج لأن مكتبة الرسم ما تحملت. حدّث الصفحة.');
+  const T = THREE;
+  let renderer;
+  try { renderer = new T.WebGLRenderer({ canvas: $('c'), antialias: true, alpha: true, preserveDrawingBuffer: true }); }
+  catch (e) { return fail('المتصفح ما يدعم WebGL، فما يگدر يعرض النموذج.'); }
+  const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+  renderer.outputEncoding = T.sRGBEncoding;
+  renderer.toneMapping = T.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = .9;
+
+  const scene = new T.Scene();
+  const camera = new T.PerspectiveCamera(28, 1, .5, 600);
+  const controls = new T.OrbitControls(camera, renderer.domElement);
+  controls.enableDamping = true; controls.dampingFactor = .08; controls.enablePan = false;
+  controls.minDistance = 12; controls.maxDistance = 200;
+  const TARGET = new T.Vector3(9, 1, 0);
+  controls.target.copy(TARGET);
+
+  const pm = new T.PMREMGenerator(renderer);
+  const es = new T.Scene(); es.background = new T.Color(0x3c4644);
+  [[0, 40, 0, 80, 4, 80, 2.2], [50, 8, 30, 4, 40, 50, 1.8], [-50, 0, 30, 4, 50, 30, 1]].forEach(a => {
+    const l = new T.Mesh(new T.BoxGeometry(a[3], a[4], a[5]), new T.MeshBasicMaterial({ color: new T.Color().setScalar(a[6]) }));
+    l.position.set(a[0], a[1], a[2]); es.add(l);
+  });
+  scene.environment = pm.fromScene(es, .03).texture;
+  const key = new T.DirectionalLight(0xffffff, .5); key.position.set(30, 60, 50); scene.add(key);
+
+  const mat = (c, r = .55, m = 0, o = {}) => new T.MeshStandardMaterial(Object.assign({ color: c, roughness: r, metalness: m }, o));
+  const add = (g, geo, m, x = 0, y = 0, z = 0) => { const k = new T.Mesh(geo, m); k.position.set(x, y, z); g.add(k); return k; };
+  const box = (g, w, h, d, m, x, y, z) => add(g, new T.BoxGeometry(w, h, d), m, x, y, z);
+  const cyl = (r, h, s = 24) => new T.CylinderGeometry(r, r, h, s);
+  const tube = (pts, r, s = 60) => new T.TubeGeometry(new T.CatmullRomCurve3(pts.map(p => new T.Vector3(...p))), s, r, 10, false);
+  const rr = (w, h, r) => {
+    const s = new T.Shape(), x = -w / 2, y = -h / 2;
+    s.moveTo(x + r, y); s.lineTo(x + w - r, y); s.quadraticCurveTo(x + w, y, x + w, y + r);
+    s.lineTo(x + w, y + h - r); s.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+    s.lineTo(x + r, y + h); s.quadraticCurveTo(x, y + h, x, y + h - r);
+    s.lineTo(x, y + r); s.quadraticCurveTo(x, y, x + r, y); return s;
+  };
+  const canvasTex = (w, h, draw) => {
+    const c = document.createElement('canvas'); c.width = w; c.height = h;
+    draw(c.getContext('2d'), w, h);
+    const t = new T.CanvasTexture(c); t.encoding = T.sRGBEncoding; t.anisotropy = 8; return t;
+  };
+  const steel = () => mat(0xaeb7b5, .32, .95);
+  const alu = mat(0xc9cecc, .4, .85);
+  const dark = () => mat(0x1b2120, .5, .2);
+  const wood = () => mat(0xb48a5a, .75);
+  const bolt = (g, x, yHead, len, z = 0) => { add(g, cyl(.22, len), steel(), x, yHead + len / 2, z); add(g, cyl(.42, .3, 6), steel(), x, yHead, z); };
+
+  const root = new T.Group(); scene.add(root);
+  const G = {};
+  const grp = id => { const g = new T.Group(); root.add(g); G[id] = g; return g; };
+
+  /* Table top: furniture, not part of the build. */
+  const table = grp('table');
+  box(table, 60, 3, 36, mat(0x7a6249, .7), -18, -1.5, 0);
+
+  /* Base: a plank on two runners, so the bolt heads fit underneath. Only the plank is clamped to the table. */
+  const mount = grp('mount');
+  [-5.5, 5.5].forEach(z => box(mount, 26, 1.5, 2, wood(), -3, .75, z));
+  box(mount, 30, 1.8, 14, mat(0xc29a68, .75), -3, 2.4, 0);
+  const clamp = grp('clamp');
+  const cm = mat(0x2c5f8f, .45, .3);
+  box(clamp, 1.2, 1.2, 15.5, cm, -14, 4.6, 11.25);
+  box(clamp, 1.2, 10.4, 1.2, cm, -14, .2, 19.6);
+  box(clamp, 1.2, 1.2, 15.5, cm, -14, -4.4, 11.25);
+  add(clamp, cyl(.8, .4), steel(), -14, 3.5, 4.2);
+  add(clamp, cyl(.3, 3.4), steel(), -14, 4.4, 4.2);
+
+  /* Fixed end: spacer, then two bolts from under the plank into the cell's threads. */
+  const spacerB = grp('spacerB');
+  box(spacerB, 4.5, .3, 2.9, mat(0x9aa3a6, .4, .7), 6.25, 3.45, 0);
+  const boltsF = grp('boltsF');
+  [-.75, .75].forEach(z => bolt(boltsF, 6.2, 1.35, 3.6, z));
+
+  /* Overload stopper: a bolt standing in the plank, about 1 mm under the bar. */
+  const stop = grp('stop');
+  add(stop, cyl(.22, 1.2), steel(), 11.4, 3, 0);
+  add(stop, cyl(.42, .2, 6), steel(), 11.4, 3.4, 0);
+
+  /* Load cell: 15 cm bar from x 4 to 19, sitting on the spacer. */
+  const cell = grp('cell');
+  const cs = rr(15, 3.6, .12), bore = new T.Path();
+  bore.absarc(-1.6, 0, 1.05, Math.PI / 2, Math.PI * 1.5, false);
+  bore.lineTo(1.6, -.28);
+  bore.absarc(1.6, 0, 1.05, -Math.PI / 2, Math.PI / 2, false);
+  bore.lineTo(-1.6, .28);
+  cs.holes.push(bore);
+  const cg = new T.ExtrudeGeometry(cs, { depth: 2.9, bevelEnabled: true, bevelSize: .05, bevelThickness: .05, bevelSegments: 2, curveSegments: 32 });
+  cg.translate(11.5, 5.4, -1.45);
+  const base = cg.attributes.position.array.slice();
+  add(cell, cg, alu);
+  box(cell, 6.4, .04, 2.6, mat(0xf2f2ee, .6), 11.7, 7.23, 0);
+  const holeM = mat(0x0f1312, .8);
+  [-.75, .75].forEach(z => add(cell, cyl(.27, .02, 20), holeM, 6.2, 7.22, z));
+  add(cell, tube([[4, 5.9, .6], [2.6, 6.2, 1.4], [0, 6.4, 3], [-8, 3.6, 6], [-18, 3.5, 8]], .22), dark());
+
+  /* Load end and everything it carries move down together when the bar bends. */
+  const free = grp('free');
+  [-.75, .75].forEach(z => add(free, cyl(.27, .02, 20), holeM, 16.8, 7.22, z));
+  const arrow = new T.Mesh(new T.PlaneGeometry(1.4, 1.4), new T.MeshBasicMaterial({
+    transparent: true, map: canvasTex(140, 140, (x) => {
+      x.fillStyle = '#111'; x.beginPath(); x.moveTo(52, 14); x.lineTo(88, 14); x.lineTo(88, 72); x.lineTo(116, 72);
+      x.lineTo(70, 128); x.lineTo(24, 72); x.lineTo(52, 72); x.closePath(); x.fill();
+    })
+  }));
+  arrow.position.set(18.1, 5.7, 1.52); free.add(arrow);
+
+  const spacerL = grp('spacerL');
+  box(spacerL, 4, .3, 2.9, mat(0x9aa3a6, .4, .7), 17, 3.45, 0);
+  const plate = grp('plate');
+  const ps = rr(6, 4, .3), ph = new T.Path(); ph.absarc(2, 0, .4, 0, Math.PI * 2, true); ps.holes.push(ph);
+  const pg = new T.ExtrudeGeometry(ps, { depth: .3, bevelEnabled: false, curveSegments: 24 }); pg.rotateX(-Math.PI / 2);
+  add(plate, pg, mat(0x3d4446, .45, .7), 16.8, 3, 0);
+  const boltsL = grp('boltsL');
+  [-.75, .75].forEach(z => bolt(boltsL, 16.8, 2.85, 1.4, z));
+
+  const hook = grp('hook');
+  add(hook, tube([[18.8, 3.6, 0], [18.8, 2.4, 0], [19.7, 1.8, 0], [19.6, .9, 0], [18.8, .4, 0], [18, -.2, 0], [18, -1.2, 0], [18.8, -1.6, 0], [19.6, -1.3, 0]], .16, 60), steel());
+
+  const bag = grp('bag');
+  const bs = () => {
+    const s = new T.Shape();
+    s.moveTo(-4.2, 0); s.lineTo(4.2, 0); s.quadraticCurveTo(5.4, 0, 5.4, -1.4);
+    s.lineTo(5.4, -12.5); s.quadraticCurveTo(5.4, -15, 2, -16.6); s.lineTo(-2, -16.6);
+    s.quadraticCurveTo(-5.4, -15, -5.4, -12.5); s.lineTo(-5.4, -1.4); s.quadraticCurveTo(-5.4, 0, -4.2, 0);
+    return s;
+  };
+  const bagGeo = k => { const g = new T.ExtrudeGeometry(bs(), { depth: 1.1, bevelEnabled: true, bevelSize: .45, bevelThickness: .6, bevelSegments: 4, curveSegments: 16 }); g.translate(0, 0, -.55); g.scale(k, k, k); return g; };
+  const bagM = add(bag, bagGeo(1), mat(0xd5e6e6, .18, 0, { transparent: true, opacity: .26, depthWrite: false, side: T.DoubleSide }), 18.8, -3.1, 0);
+  bagM.renderOrder = 3;
+  const liq = add(bag, bagGeo(.9), mat(0x3fa9c9, .12, 0, { transparent: true, opacity: .7, depthWrite: false }), 18.8, -4.5, 0);
+  liq.renderOrder = 2;
+  const tab = rr(4, 1.8, .3), th = new T.Path(); th.absarc(0, .2, .45, 0, Math.PI * 2, true); tab.holes.push(th);
+  add(bag, new T.ExtrudeGeometry(tab, { depth: .1, bevelEnabled: false, curveSegments: 24 }), mat(0xe2eded, .3, 0, { transparent: true, opacity: .8 }), 18.8, -2.1, -.05);
+  add(bag, cyl(.4, 2.2), mat(0xe9eeee, .35), 18.8, -20.9, 0);
+
+  /* The air gap under the bending middle. */
+  const gap = grp('gap');
+  const gapM = add(gap, new T.BoxGeometry(3.4, .3, 2.9), new T.MeshBasicMaterial({ color: 0xf0b23c, transparent: true, opacity: .5, depthWrite: false }), 10.2, 3.45, 0);
+
+  /* Exploded offsets, and which groups ride on the load end. */
+  const OFF = {
+    clamp: [0, 3, 0], cell: [0, 5, 0], free: [0, 5, 0], spacerB: [0, 2, 0], boltsF: [0, -1, 0], stop: [0, 0, 0],
+    spacerL: [0, 3, 0], plate: [0, 0, 0], boltsL: [0, -1.6, 0], hook: [0, -2.4, 0], bag: [0, -5, 0], gap: [0, 0, 0]
+  };
+  const RIDES = { free: 1, spacerL: 1, plate: 1, boltsL: 1, hook: 1, bag: 1 };
+
+  /* Labels in 3D space: [text, group, x, y, z, key?]. */
+  const LABELS = [
+    ['الطرف الثابت', 'cell', 5.4, 7.3, -1.4, 1],
+    ['فاصل 2 ملم', 'spacerB', 4, 3.5, 1.5],
+    ['برغيين من تحت', 'boltsF', 3.8, 1.3, 1.5],
+    ['القاعدة: لوح خشب', 'mount', -10, 3.3, 7],
+    ['الملزمة على اللوح بس', 'clamp', -14, 4.8, 15],
+    ['الوسط حر', 'gap', 9.4, 3.6, 1.5, 1],
+    ['مانع حمل زائد', 'stop', 12.4, 1.2, 3],
+    ['الطرف الحمل، السهم للجوه', 'free', 18.8, 7.3, 1.4, 1],
+    ['فاصل وصفيحة ببرغيين', 'plate', 19.8, 3, 2],
+    ['خطاف S', 'hook', 20.2, .4, 0],
+    ['الكيس', 'bag', 24.4, -9, 0]
+  ];
+  const lblBox = $('labels');
+  const lbls = LABELS.map(l => { const d = document.createElement('div'); d.className = 'lbl' + (l[5] ? ' key' : ''); d.textContent = l[0]; lblBox.append(d); return d; });
+  let showNames = true;
+  $('names').addEventListener('click', e => { showNames = !showNames; e.currentTarget.setAttribute('aria-pressed', String(showNames)); lblBox.hidden = !showNames; });
+
+  let ex = 0, exT = 0, w = 550, bend = 0;
+  document.querySelectorAll('[data-mode]').forEach(b => b.addEventListener('click', () => {
+    exT = b.dataset.mode === 'exploded' ? 1 : 0;
+    document.querySelectorAll('[data-mode]').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
+    if (reduced) ex = exT;
+  }));
+  $('w').addEventListener('input', e => { w = +e.target.value; $('wOut').textContent = w + ' g'; });
+
+  /* Parallelogram bend: the bar past the fixed end drops, the load end stays level. */
+  const pos = cg.attributes.position;
+  const applyBend = d => {
+    for (let i = 0; i < pos.count; i++) {
+      const x = base[i * 3], t = Math.min(1, Math.max(0, (x - 8.5) / 6.5));
+      pos.array[i * 3 + 1] = base[i * 3 + 1] - d * t * t * (3 - 2 * t);
+    }
+    pos.needsUpdate = true; cg.computeVertexNormals();
+  };
+
+  const resize = () => {
+    const W = stage.clientWidth, H = stage.clientHeight;
+    if (!W || !H) return;
+    renderer.setSize(W, H, false);
+    camera.aspect = W / H;
+    const tan = Math.tan(T.MathUtils.degToRad(camera.fov / 2));
+    const barH = stage.querySelector('.bar').offsetHeight + 24, room = Math.max(.45, (H - barH) / H);
+    const fit = Math.max(28 / (2 * tan), 34 / (2 * tan * camera.aspect)) / room;
+    camera.setViewOffset(W, H, 0, barH / 2, W, H);
+    if (!resize.done) { camera.position.copy(TARGET).addScaledVector(new T.Vector3(.45, .42, 1).normalize(), fit); resize.done = true; }
+    camera.updateProjectionMatrix();
+  };
+  new ResizeObserver(resize).observe(stage);
+  resize();
+
+  const v = new T.Vector3(), clock = new T.Clock(); let lastBend = -1;
+  const frame = () => {
+    if (!resize.done) return requestAnimationFrame(frame);
+    const dt = Math.min(clock.getDelta(), .05), k = 1 - Math.exp(-dt * 6);
+    ex += (exT - ex) * k; if (Math.abs(exT - ex) < .001) ex = exT;
+    bend += (w / 1000 * 1.1 - bend) * (reduced ? 1 : k);
+    if (Math.abs(bend - lastBend) > .0005) { applyBend(bend); lastBend = bend; }
+    Object.keys(OFF).forEach(id => {
+      const o = OFF[id];
+      G[id].position.set(o[0] * ex, o[1] * ex - (RIDES[id] ? bend : 0), o[2] * ex);
+    });
+    G.cell.position.y = OFF.cell[1] * ex;
+    gapM.material.opacity = .5 * (1 - ex);
+    liq.scale.y = Math.max(.05, w / 1000 * 1.6);
+    controls.update();
+    renderer.render(scene, camera);
+    if (showNames) {
+      const W = stage.clientWidth, H = stage.clientHeight;
+      LABELS.forEach((l, i) => {
+        v.set(l[2], l[3], l[4]).add(G[l[1]].position).project(camera);
+        const el = lbls[i], vis = v.z < 1 && Math.abs(v.x) < 1.1 && Math.abs(v.y) < 1.1;
+        el.style.visibility = vis ? 'visible' : 'hidden';
+        el.style.transform = 'translate(' + ((v.x + 1) / 2 * W) + 'px,' + ((1 - v.y) / 2 * H) + 'px) translate(-50%,-110%)';
+      });
+    }
+    requestAnimationFrame(frame);
+  };
+  frame();
+})();
+</script>

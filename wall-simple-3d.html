@@ -1,0 +1,353 @@
+<title>التجربة على الحايط</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Arabic:wght@400;500;600&family=Reem+Kufi:wght@500;600&display=swap">
+<style>
+/* Layout: the whole wall board on a dark stage, the parts list down the reading edge. */
+:root {
+  --bg: #e6ecea; --panel: #f3f6f4; --ink: #12302f; --muted: #4b6462;
+  --line: #c5d2cf; --accent: #0b6e69; --on-accent: #f3f6f4; --tint: #d9e7e3;
+  --warn: #b3261e; --ok: #1e7a46;
+  --stage: #1f302e; --stage-ink: #c3d5d1;
+  --display: "Reem Kufi", "IBM Plex Sans Arabic", "Segoe UI", Tahoma, sans-serif;
+  --body: "IBM Plex Sans Arabic", "Segoe UI", Tahoma, sans-serif;
+  --data: "IBM Plex Mono", Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f1918; --panel: #152220; --ink: #e3eeeb; --muted: #9db3af;
+    --line: #2b3d3a; --accent: #4fc3b8; --on-accent: #0f1918; --tint: #1e3330;
+    --warn: #f08a7e; --ok: #6fd199; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0f1918; --panel: #152220; --ink: #e3eeeb; --muted: #9db3af;
+  --line: #2b3d3a; --accent: #4fc3b8; --on-accent: #0f1918; --tint: #1e3330;
+  --warn: #f08a7e; --ok: #6fd199; color-scheme: dark;
+}
+html, body { height: 100%; }
+body { background: var(--bg); color: var(--ink); font-family: var(--body); font-size: 15px; line-height: 1.6; }
+::selection { background: var(--accent); color: var(--on-accent); }
+.app { display: grid; grid-template-columns: 360px minmax(0, 1fr); height: 100%; min-height: 0; }
+.ledger {
+  color: var(--ink); background: var(--panel); border-inline-end: 1px solid var(--line);
+  overflow-y: auto; padding-block: 24px;
+  padding-left: max(20px, env(safe-area-inset-left, 0px));
+  padding-right: max(20px, env(safe-area-inset-right, 0px));
+  scrollbar-color: var(--line) transparent; scrollbar-width: thin;
+}
+h1 { font-family: var(--display); font-weight: 600; font-size: 28px; line-height: 1.25; margin: 0; text-wrap: balance; }
+.lede { color: var(--muted); margin: 8px 0 0; }
+h2 { font-size: 15px; font-weight: 600; margin: 26px 0 8px; }
+.steps { margin: 0; padding: 0; list-style: none; counter-reset: s; border-top: 1px solid var(--line); }
+.steps li { counter-increment: s; border-bottom: 1px solid var(--line); padding: 10px 0; display: grid; grid-template-columns: 26px 1fr; gap: 0 8px; }
+.steps li::before { content: counter(s); font-family: var(--data); font-size: 13px; color: var(--accent); padding-top: 2px; }
+.steps b { font-weight: 500; }
+.steps p { grid-column: 2; margin: 2px 0 0; color: var(--muted); font-size: 14px; }
+.note { color: var(--muted); font-size: 13.5px; margin: 18px 0 0; }
+.stage { background: var(--stage); position: relative; min-width: 0; min-height: 0; overflow: hidden; }
+canvas { display: block; width: 100%; height: 100%; touch-action: none; cursor: grab; }
+canvas:active { cursor: grabbing; }
+.lbl {
+  position: absolute; top: 0; left: 0; pointer-events: none; white-space: nowrap;
+  background: var(--panel); color: var(--ink); font-size: 13px; font-weight: 500;
+  padding: 2px 9px; border-radius: 4px; box-shadow: 0 3px 10px rgba(0, 0, 0, .3);
+}
+.lbl.key { background: var(--accent); color: var(--on-accent); }
+.hint { position: absolute; top: 14px; left: 16px; color: var(--stage-ink); font-size: 13.5px; }
+.bar {
+  color: var(--ink); position: absolute; bottom: 16px; left: 16px; right: 16px;
+  display: grid; gap: 8px; background: var(--panel); border-radius: 6px; padding: 10px 14px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, .28);
+}
+.row { display: flex; flex-wrap: wrap; gap: 8px 18px; align-items: center; justify-content: space-between; }
+.seg { display: flex; gap: 2px; background: var(--tint); padding: 2px; border-radius: 5px; }
+.seg button { all: unset; cursor: pointer; padding: 5px 12px; border-radius: 4px; font-size: 14px; font-weight: 500; color: var(--muted); }
+.seg button:hover { color: var(--ink); }
+.seg button[aria-pressed="true"] { background: var(--accent); color: var(--on-accent); }
+.seg button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.level { display: flex; align-items: center; gap: 10px; flex: 1 1 260px; min-width: 0; }
+.level label { font-size: 14px; color: var(--muted); white-space: nowrap; }
+.level input { flex: 1; min-width: 70px; accent-color: var(--accent); }
+.level output { font-family: var(--data); font-size: 14px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.read { display: flex; flex-wrap: wrap; gap: 4px 18px; font-size: 13.5px; color: var(--muted); }
+.read b { color: var(--ink); font-weight: 500; }
+#state { font-weight: 600; color: var(--ok); }
+#state.shut { color: var(--warn); }
+.fail { position: absolute; inset: 0; display: grid; place-items: center; padding: 24px; text-align: center; color: var(--stage-ink); }
+@media (max-width: 860px) {
+  html, body { height: auto; }
+  .app { grid-template-columns: minmax(0, 1fr); height: auto; }
+  .stage { order: -1; height: 72svh; min-height: 500px; }
+  .ledger { border-inline-end: 0; border-top: 1px solid var(--line); overflow: visible; }
+  .hint { display: none; }
+  .bar { bottom: 10px; left: 10px; right: 10px; padding: 8px 10px; }
+}
+</style>
+
+<div class="app" dir="rtl" lang="ar">
+  <aside class="ledger">
+    <h1>التجربة على لوحة بالحايط</h1>
+    <p class="lede">النسخة البسيطة: لوحة وخشبتين من النجار، والباقي شريط لاصق وأشرطة ربط.</p>
+    <h2>من النجار</h2>
+    <ol class="steps">
+      <li><b>لوحة بليوود 30 × 55 سم</b><p>تتعلق على الحايط، وكلشي يتركب عليها.</p></li>
+      <li><b>خشبة سميكة 4 × 4 × 12 سم</b><p>تنربط على اللوحة من فوق وتطلع لبرّا. الـload cell يقعد عليها ببرغيين، والقنينة تتعلق بعيد عن اللوحة أكثر من 10 سم.</p></li>
+      <li><b>خشبة صغيرة 2 × 5 × 6 سم</b><p>الحاجز. تطلع من اللوحة لحد مستوى ذراع السيرفو، حتى الأنبوب ينكبس عليها.</p></li>
+    </ol>
+    <h2>تسويها انت</h2>
+    <ol class="steps">
+      <li><b>الـload cell</b><p>الطرف الثابت بس، اللي يطلع منه السلك وبيه فتحتين، فوق نهاية الخشبة، ويه واشرات تحته وبرغيين. من الملصق الأبيض ولقدّام كله برّا الخشبة بالهواء.</p></li>
+      <li><b>برغي بحلقة</b><p>بفتحة من الطرف الحر، والقنينة تتعلق بيه.</p></li>
+      <li><b>السيرفو والحاجز</b><p>شريط لاصق وجهين قوي على اللوحة. الأنبوب يمر بين ريشة السيرفو والحاجز.</p></li>
+      <li><b>البريد بورد والباور بانك</b><p>شريط لاصق وجهين بنص اللوحة.</p></li>
+      <li><b>الـroller clamp</b><p>يبقى على الأنبوب، وتضبط بيه السرعة بإيدك.</p></li>
+    </ol>
+    <p class="note">الأبعاد تقريبية. خلي الحاجز تگدر تقربه وتبعده لحد ما يسكر الأنبوب صح. التجربة بماي أو بالمحلول، وما ينربط على مريض.</p>
+  </aside>
+  <main class="stage" id="stage">
+    <canvas id="c" aria-label="نموذج ثلاثي الأبعاد للتجربة على لوحة معلقة بالحايط"></canvas>
+    <div id="labels"></div>
+    <div class="hint">اسحب للتدوير، وكبّر بعجلة الماوس</div>
+    <div class="bar">
+      <div class="row">
+        <div class="seg" role="group" aria-label="المنظر">
+          <button type="button" data-view="all" aria-pressed="true">كامل</button>
+          <button type="button" data-view="cell" aria-pressed="false">الـload cell</button>
+          <button type="button" data-view="valve" aria-pressed="false">الصمام</button>
+        </div>
+        <div class="seg" role="group" aria-label="الصمام">
+          <button type="button" data-valve="open" aria-pressed="true">فتح</button>
+          <button type="button" data-valve="close" aria-pressed="false">إغلاق</button>
+          <button type="button" id="names" aria-pressed="true">الأسماء</button>
+        </div>
+      </div>
+      <div class="read"><span id="state" role="status">مفتوح، يقطّر</span></div>
+    </div>
+  </main>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script>
+(function () {
+  const $ = id => document.getElementById(id);
+  const stage = $('stage');
+  const fail = msg => { const d = document.createElement('div'); d.className = 'fail'; d.textContent = msg; stage.append(d); };
+  if (!window.THREE || !THREE.OrbitControls) return fail('ما انفتح النموذج لأن مكتبة الرسم ما تحملت. حدّث الصفحة.');
+  const T = THREE;
+  let renderer;
+  try { renderer = new T.WebGLRenderer({ canvas: $('c'), antialias: true, alpha: true, preserveDrawingBuffer: true }); }
+  catch (e) { return fail('المتصفح ما يدعم WebGL، فما يگدر يعرض النموذج.'); }
+  const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+  renderer.outputEncoding = T.sRGBEncoding;
+  renderer.toneMapping = T.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = .9;
+
+  const scene = new T.Scene();
+  const camera = new T.PerspectiveCamera(28, 1, .5, 900);
+  const controls = new T.OrbitControls(camera, renderer.domElement);
+  controls.enableDamping = true; controls.dampingFactor = .08; controls.enablePan = false;
+  controls.minDistance = 8; controls.maxDistance = 500;
+
+  const pm = new T.PMREMGenerator(renderer);
+  const es = new T.Scene(); es.background = new T.Color(0x3c4644);
+  [[0, 40, 0, 80, 4, 80, 2.2], [50, 8, 30, 4, 40, 50, 1.8], [-50, 0, 30, 4, 50, 30, 1]].forEach(a => {
+    const l = new T.Mesh(new T.BoxGeometry(a[3], a[4], a[5]), new T.MeshBasicMaterial({ color: new T.Color().setScalar(a[6]) }));
+    l.position.set(a[0], a[1], a[2]); es.add(l);
+  });
+  scene.environment = pm.fromScene(es, .03).texture;
+  const key = new T.DirectionalLight(0xffffff, .5); key.position.set(30, 160, 80); scene.add(key);
+
+  const mat = (c, r = .55, m = 0, o = {}) => new T.MeshStandardMaterial(Object.assign({ color: c, roughness: r, metalness: m }, o));
+  const add = (g, geo, m, x = 0, y = 0, z = 0) => { const k = new T.Mesh(geo, m); k.position.set(x, y, z); g.add(k); return k; };
+  const box = (g, w, h, d, m, x, y, z) => add(g, new T.BoxGeometry(w, h, d), m, x, y, z);
+  const cyl = (r, h, s = 28) => new T.CylinderGeometry(r, r, h, s);
+  const cylZ = (r, h, s) => cyl(r, h, s).rotateX(Math.PI / 2);
+  const tube = (pts, r, s = 80) => new T.TubeGeometry(new T.CatmullRomCurve3(pts.map(p => new T.Vector3(...p))), s, r, 10, false);
+  const steel = () => mat(0xb9c1bf, .3, .95);
+  const dark = () => mat(0x1b2120, .5, .2);
+  const root = new T.Group(); scene.add(root);
+
+  /* Wall, floor and the plywood board. */
+  add(root, new T.CircleGeometry(90, 64).rotateX(-Math.PI / 2), new T.MeshBasicMaterial({ color: 0x28403c, toneMapped: false }), 0, 0, 20);
+  box(root, 160, 150, .4, mat(0x3a4a47, .95), 0, 75, -.2);
+  box(root, 30, 55, 1.5, mat(0xc29a68, .75), 0, 92.5, .75);
+  [-12, 12].forEach(x => add(root, cylZ(.5, .3, 16), steel(), x, 117, 1.6));
+
+  /* Thick block that carries the load cell out from the board. */
+  box(root, 4, 4, 12, mat(0xa57b4c, .75), 10, 108, 7.5);
+
+  /* 3 kg bar load cell along z: fixed end on washers over the block, free end past it. */
+  const cellM = mat(0xc9cecc, .4, .85);
+  box(root, 1.27, 1.27, 8, cellM, 10, 110.9, 15.4);
+  box(root, 1.3, .9, 2.4, mat(0xf2f2ee, .6), 10, 110.9, 15.4);
+  [12, 13].forEach(z => { add(root, cyl(.5, .25, 16), steel(), 10, 110.13, z); add(root, cyl(.35, .2, 6), steel(), 10, 111.62, z); });
+  [17.8, 18.8].forEach(z => add(root, cyl(.18, .02, 12), mat(0x111, .8), 10, 111.55, z));
+  add(root, tube([[10, 110.9, 11.4], [10, 111.2, 9], [9, 110.5, 3], [6, 108, 2.2], [2.6, 106.2, 2.6]], .12, 50), mat(0x2a2f2e, .6));
+
+  /* Eye screw under the free end, and the bottle hanging from it. */
+  add(root, cyl(.18, 1.2, 10), steel(), 10, 109.7, 18.8);
+  const ring = add(root, new T.TorusGeometry(.7, .14, 10, 30), steel(), 10, 108.4, 18.8); ring.rotation.y = Math.PI / 2;
+  add(root, tube([[10, 107.75, 18.8], [10, 107, 18.5], [10, 106.2, 18.8]], .1, 10), mat(0xe8eeee, .4));
+  const bottleM = mat(0xdde9e9, .2, 0, { transparent: true, opacity: .32, depthWrite: false, side: T.DoubleSide });
+  const bottle = add(root, new T.LatheGeometry([[0, 0], [3.4, 0], [3.5, .6], [3.5, 14], [3, 15.6], [1.2, 17], [1, 18.4], [0, 18.4]].map(p => new T.Vector2(p[0], p[1])), 40), bottleM, 10, 106, 18.8);
+  bottle.rotation.x = Math.PI; bottle.renderOrder = 3;
+  const liq = add(root, cyl(3.3, 11, 40), mat(0x3fa9c9, .15, 0, { transparent: true, opacity: .6, depthWrite: false }), 10, 99.5 - 5.5 + 1, 18.8); liq.renderOrder = 2;
+  add(root, cyl(.9, 1.2, 20), mat(0x2f6fd0, .4), 10, 87.4, 18.8);
+  add(root, cyl(.8, 5.5, 24), mat(0xeaf3f3, .15, 0, { transparent: true, opacity: .45, depthWrite: false }), 10, 83.3, 18.8);
+  const drop = add(root, new T.SphereGeometry(.16, 10, 8), mat(0x7cc9dc, .12), 10, 85, 18.8);
+
+  /* Gap marker: the bottle stays more than 10 cm off the board. */
+  const gapLine = add(root, new T.CylinderGeometry(.06, .06, 13.8, 8).rotateX(Math.PI / 2), new T.MeshBasicMaterial({ color: 0xf0b23c }), 10, 97, 8.4);
+
+  /* Tube: drip chamber, the hand roller clamp, a slack loop, then through the valve and down to the cup. */
+  const tubeM = mat(0xe2ecec, .25, 0, { transparent: true, opacity: .82 });
+  add(root, tube([[10, 80.5, 18.8], [10, 73, 18.8], [9.4, 70.6, 17.8], [5, 72.5, 10], [-1, 74.6, 7.2], [-4.8, 74.6, 6.1], [-5.55, 73, 5.9]], .22, 60), tubeM);
+  box(root, 1.5, 5, 1.2, mat(0xe3e7e8, .4), 10, 76.5, 18.8);
+  add(root, cyl(.6, .9, 20).rotateZ(Math.PI / 2), mat(0x2f6fd0, .4), 10.1, 77.1, 19.6);
+  const SEG = 14, segs = [];
+  for (let i = 0; i < SEG; i++) {
+    const y = 67 + (i + .5) * 6 / SEG;
+    segs.push(add(root, cyl(.22, 6 / SEG + .01, 16), tubeM, -5.55, y, 5.9));
+  }
+  add(root, tube([[-5.55, 67, 5.9], [-5.55, 60, 6.2], [-5.4, 45, 7], [-5.1, 24, 8], [-5, 12.5, 8]], .22, 40), tubeM);
+
+  /* Valve: servo taped to the board, shaft out of it; anvil block beside the tube. */
+  box(root, 4, 2, 3.8, mat(0x1e2528, .45, .1), -7, 70, 3.4);
+  box(root, 5.4, 2, .22, mat(0x1e2528, .45), -7, 70, 4.8);
+  box(root, 4.2, 2.2, .3, mat(0xd9d4c4, .9), -7, 70, 1.65);
+  add(root, cylZ(.5, .5, 20), mat(0x1e2528, .45), -8, 70, 5.5);
+  const horn = new T.Group(); horn.position.set(-8, 70, 5.9); root.add(horn);
+  const hornM = mat(0xf0f1ee, .45);
+  add(horn, cylZ(.45, .22, 20), hornM, 0, 0, 0);
+  box(horn, 4.4, .45, .22, hornM, 0, 0, 0);
+  [-2.15, 2.15].forEach(x => add(horn, cylZ(.22, .22, 16), hornM, x, 0, 0));
+  box(root, 2, 5, 6, mat(0xa57b4c, .75), -4.33 + .1, 70, 4.5);
+  add(root, tube([[-6, 69.4, 4.5], [-4, 76, 2.2], [-3, 92, 2.1], [-2, 101.5, 2.4]], .07, 30), mat(0xd9842c, .55));
+
+  /* Electronics taped to the board. */
+  const bb = mat(0xf0ede3, .7);
+  box(root, 16.5, 5.5, .85, bb, -3, 104, 1.93);
+  box(root, 5.2, 2.8, .4, mat(0x1b2730, .55), -5.5, 104.5, 2.55);
+  box(root, 3.4, 2.1, .3, mat(0x14713f, .5), 1, 106, 2.5);
+  box(root, 7, 14, 1.6, mat(0x2c3236, .45, .2), -10, 88, 2.3);
+  add(root, tube([[-10, 95.5, 2.3], [-10, 99, 3.2], [-8.5, 103, 3.2], [-8.2, 104.5, 2.8]], .14, 30), dark());
+
+  /* Cup on the floor. */
+  const cupM = mat(0xe4eeee, .12, 0, { transparent: true, opacity: .3, depthWrite: false, side: T.DoubleSide });
+  add(root, new T.CylinderGeometry(5, 4.4, 12, 40, 1, true), cupM, -5, 6, 8).renderOrder = 3;
+  add(root, cyl(4.35, 2.5, 40), mat(0x3fa9c9, .15, 0, { transparent: true, opacity: .55, depthWrite: false }), -5, 1.3, 8);
+
+  const LABELS = [
+    ['لوحة 30 × 55', -11, 118, 1.6, 0, 'all'],
+    ['خشبة 4 × 4 × 12', 12.4, 106, 4, 1, 'cell'],
+    ['Load cell 3 كغم', 10.8, 112.2, 15.4, 1, 'all cell'],
+    ['برغي بحلقة', 11.6, 108.4, 18.8, 0, 'cell'],
+    ['أكثر من 10 سم', 10.8, 97.6, 8.4, 1, 'cell'],
+    ['القنينة', 14.6, 100, 18.8, 0, 'all'],
+    ['roller clamp للسرعة', 11.6, 76.5, 18.8, 0, 'all'],
+    ['السيرفو بشريط وجهين', -11, 71.5, 3.4, 1, 'all valve'],
+    ['الحاجز 2 × 5 × 6', -3, 73, 7.6, 1, 'valve'],
+    ['البريد بورد', -3, 107.5, 2.4, 0, 'all'],
+    ['الباور بانك', -10, 95.6, 3.2, 0, 'cell'],
+    ['الكوب', -5, 13, 8, 0, 'all']
+  ];
+  const lblBox = $('labels');
+  const lbls = LABELS.map(l => { const d = document.createElement('div'); d.className = 'lbl' + (l[4] ? ' key' : ''); d.textContent = l[0]; lblBox.append(d); return d; });
+  let showNames = true;
+  $('names').addEventListener('click', e => { showNames = !showNames; e.currentTarget.setAttribute('aria-pressed', String(showNames)); lblBox.hidden = !showNames; });
+
+  const VIEWS = {
+    all: { t: [2, 70, 8], d: 0, dir: [.6, .18, 1] },
+    cell: { t: [10, 108, 14], d: 34, dir: [1, .3, .55] },
+    valve: { t: [-5.5, 70, 5], d: 30, dir: [-.65, .3, 1] }
+  };
+  let fit = 200, camGoal = null, tgtGoal = null, touched = false, view = 'all';
+  const fly = k => {
+    touched = true; view = k;
+    const v = VIEWS[k];
+    tgtGoal = new T.Vector3(...v.t);
+    camGoal = tgtGoal.clone().addScaledVector(new T.Vector3(...v.dir).normalize(), v.d || fit);
+    document.querySelectorAll('[data-view]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.view === k)));
+    if (reduced) { camera.position.copy(camGoal); controls.target.copy(tgtGoal); camGoal = tgtGoal = null; }
+  };
+  document.querySelectorAll('[data-view]').forEach(b => b.addEventListener('click', () => fly(b.dataset.view)));
+  const cv = renderer.domElement;
+  const stop = () => { touched = true; camGoal = tgtGoal = null; };
+  cv.addEventListener('pointerdown', stop);
+  cv.addEventListener('wheel', stop, { passive: true });
+
+  let ang = 0, angT = 0, dropT = 0;
+  document.querySelectorAll('[data-valve]').forEach(b => b.addEventListener('click', () => {
+    angT = b.dataset.valve === 'close' ? 90 : 0;
+    document.querySelectorAll('[data-valve]').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
+    if (reduced) ang = angT;
+  }));
+
+  /* Servo 90 points a blade straight at the tube (closed); 0 swings it up, away (open). */
+  const applyValve = () => {
+    const psi = (90 - ang) * Math.PI / 180;
+    horn.rotation.z = psi;
+    const f = Math.max(0, Math.min(1, (25 - (90 - ang)) / 25));
+    segs.forEach(s => {
+      const k = Math.max(0, 1 - Math.abs(s.position.y - 70) / .9), sq = f * k;
+      s.scale.set(1 - .8 * sq, 1, 1 + .25 * sq);
+      s.position.x = -5.55 + .17 * sq;
+    });
+    const st = $('state');
+    st.textContent = f > .98 ? 'مغلق، ما يقطّر' : f > 0 ? 'الريشة تضغط الأنبوب' : 'مفتوح، يقطّر';
+    return f;
+  };
+
+  const resize = () => {
+    const W = stage.clientWidth, H = stage.clientHeight;
+    if (!W || !H) return;
+    renderer.setSize(W, H, false);
+    camera.aspect = W / H;
+    const tan = Math.tan(T.MathUtils.degToRad(camera.fov / 2));
+    const barH = stage.querySelector('.bar').offsetHeight + 24, room = Math.max(.45, (H - barH) / H);
+    fit = Math.max(118 / (2 * tan), 62 / (2 * tan * camera.aspect)) / room;
+    camera.setViewOffset(W, H, 0, barH / 2, W, H);
+    if (!touched) {
+      controls.target.set(...VIEWS.all.t);
+      camera.position.copy(controls.target).addScaledVector(new T.Vector3(...VIEWS.all.dir).normalize(), fit);
+    }
+    resize.done = true;
+    camera.updateProjectionMatrix();
+  };
+  new ResizeObserver(resize).observe(stage);
+  resize();
+
+  const v = new T.Vector3(), clock = new T.Clock(); let lastAng = -1, f = 0;
+  const frame = () => {
+    if (!resize.done) return requestAnimationFrame(frame);
+    const dt = Math.min(clock.getDelta(), .05), k = 1 - Math.exp(-dt * 5);
+    ang += (angT - ang) * k; if (Math.abs(angT - ang) < .2) ang = angT;
+    if (ang !== lastAng) { f = applyValve(); lastAng = ang; }
+    if (f < .98 && !reduced) {
+      dropT = (dropT + dt) % 1.2;
+      const t = dropT / .5; drop.visible = t < 1; drop.position.y = 85.4 - 3 * t * t;
+    } else drop.visible = false;
+    if (camGoal) {
+      camera.position.lerp(camGoal, k); controls.target.lerp(tgtGoal, k);
+      if (camera.position.distanceTo(camGoal) < .3) camGoal = tgtGoal = null;
+    }
+    controls.update();
+    renderer.render(scene, camera);
+    if (showNames) {
+      const W = stage.clientWidth, H = stage.clientHeight;
+      LABELS.forEach((l, i) => {
+        v.set(l[1], l[2], l[3]).project(camera);
+        const el = lbls[i], vis = l[5].includes(view) && v.z < 1 && Math.abs(v.x) < 1.05 && Math.abs(v.y) < 1.05;
+        el.style.visibility = vis ? 'visible' : 'hidden';
+        el.style.transform = 'translate(' + ((v.x + 1) / 2 * W) + 'px,' + ((1 - v.y) / 2 * H) + 'px) translate(-50%,-110%)';
+      });
+    }
+    requestAnimationFrame(frame);
+  };
+  applyValve();
+  frame();
+})();
+</script>

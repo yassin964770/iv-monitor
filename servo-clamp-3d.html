@@ -1,0 +1,334 @@
+<title>السيرفو والـroller clamp</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Arabic:wght@400;500;600&family=Reem+Kufi:wght@500;600&display=swap">
+<style>
+/* Layout: the coupling close up on a dark stage, the build steps down the reading edge. */
+:root {
+  --bg: #e6ecea; --panel: #f3f6f4; --ink: #12302f; --muted: #4b6462;
+  --line: #c5d2cf; --accent: #0b6e69; --on-accent: #f3f6f4; --tint: #d9e7e3;
+  --warn: #b3261e; --ok: #1e7a46;
+  --stage: #1f302e; --stage-ink: #c3d5d1;
+  --display: "Reem Kufi", "IBM Plex Sans Arabic", "Segoe UI", Tahoma, sans-serif;
+  --body: "IBM Plex Sans Arabic", "Segoe UI", Tahoma, sans-serif;
+  --data: "IBM Plex Mono", Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f1918; --panel: #152220; --ink: #e3eeeb; --muted: #9db3af;
+    --line: #2b3d3a; --accent: #4fc3b8; --on-accent: #0f1918; --tint: #1e3330;
+    --warn: #f08a7e; --ok: #6fd199; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0f1918; --panel: #152220; --ink: #e3eeeb; --muted: #9db3af;
+  --line: #2b3d3a; --accent: #4fc3b8; --on-accent: #0f1918; --tint: #1e3330;
+  --warn: #f08a7e; --ok: #6fd199; color-scheme: dark;
+}
+html, body { height: 100%; }
+body { background: var(--bg); color: var(--ink); font-family: var(--body); font-size: 15px; line-height: 1.6; }
+::selection { background: var(--accent); color: var(--on-accent); }
+.app { display: grid; grid-template-columns: 360px minmax(0, 1fr); height: 100%; min-height: 0; }
+.ledger {
+  color: var(--ink); background: var(--panel); border-inline-end: 1px solid var(--line);
+  overflow-y: auto; padding-block: 24px;
+  padding-left: max(20px, env(safe-area-inset-left, 0px));
+  padding-right: max(20px, env(safe-area-inset-right, 0px));
+  scrollbar-color: var(--line) transparent; scrollbar-width: thin;
+}
+h1 { font-family: var(--display); font-weight: 600; font-size: 28px; line-height: 1.25; margin: 0; text-wrap: balance; }
+.lede { color: var(--muted); margin: 8px 0 0; }
+h2 { font-size: 15px; font-weight: 600; margin: 26px 0 8px; }
+.steps { margin: 0; padding: 0; list-style: none; counter-reset: s; border-top: 1px solid var(--line); }
+.steps li { counter-increment: s; border-bottom: 1px solid var(--line); padding: 10px 0; display: grid; grid-template-columns: 26px 1fr; gap: 0 8px; }
+.steps li::before { content: counter(s); font-family: var(--data); font-size: 13px; color: var(--accent); padding-top: 2px; }
+.steps b { font-weight: 500; }
+.steps p { grid-column: 2; margin: 2px 0 0; color: var(--muted); font-size: 14px; }
+.note { color: var(--muted); font-size: 13.5px; margin: 18px 0 0; }
+
+.stage { background: var(--stage); position: relative; min-width: 0; min-height: 0; overflow: hidden; }
+canvas { display: block; width: 100%; height: 100%; touch-action: none; cursor: grab; }
+canvas:active { cursor: grabbing; }
+.lbl {
+  position: absolute; top: 0; left: 0; pointer-events: none; white-space: nowrap;
+  background: var(--panel); color: var(--ink); font-size: 13px; font-weight: 500;
+  padding: 2px 9px; border-radius: 4px; box-shadow: 0 3px 10px rgba(0, 0, 0, .3);
+}
+.lbl.key { background: var(--accent); color: var(--on-accent); }
+.hint { position: absolute; top: 14px; left: 16px; color: var(--stage-ink); font-size: 13.5px; }
+.bar {
+  color: var(--ink); position: absolute; bottom: 16px; left: 16px; right: 16px;
+  display: grid; gap: 8px; background: var(--panel); border-radius: 6px; padding: 10px 14px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, .28);
+}
+.row { display: flex; flex-wrap: wrap; gap: 8px 18px; align-items: center; justify-content: space-between; }
+.seg { display: flex; gap: 2px; background: var(--tint); padding: 2px; border-radius: 5px; }
+.seg button { all: unset; cursor: pointer; padding: 5px 12px; border-radius: 4px; font-size: 14px; font-weight: 500; color: var(--muted); }
+.seg button:hover { color: var(--ink); }
+.seg button[aria-pressed="true"] { background: var(--accent); color: var(--on-accent); }
+.seg button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.level { display: flex; align-items: center; gap: 10px; flex: 1 1 260px; min-width: 0; }
+.level label { font-size: 14px; color: var(--muted); white-space: nowrap; }
+.level input { flex: 1; min-width: 70px; accent-color: var(--accent); }
+.level output { font-family: var(--data); font-size: 14px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.read { display: flex; flex-wrap: wrap; gap: 4px 18px; font-size: 13.5px; color: var(--muted); }
+.read b { color: var(--ink); font-weight: 500; }
+#state { font-weight: 600; color: var(--ok); }
+#state.shut { color: var(--warn); }
+.fail { position: absolute; inset: 0; display: grid; place-items: center; padding: 24px; text-align: center; color: var(--stage-ink); }
+@media (max-width: 860px) {
+  html, body { height: auto; }
+  .app { grid-template-columns: minmax(0, 1fr); height: auto; }
+  .stage { order: -1; height: 72svh; min-height: 500px; }
+  .ledger { border-inline-end: 0; border-top: 1px solid var(--line); overflow: visible; }
+  .hint { display: none; }
+  .bar { bottom: 10px; left: 10px; right: 10px; padding: 8px 10px; }
+}
+</style>
+
+<div class="app" dir="rtl" lang="ar">
+  <aside class="ledger">
+    <h1>السيرفو والـroller clamp</h1>
+    <p class="lede">ذراع السيرفو يدور، ورأسه يدفع العجلة على مجراها. لمن تمشي العجلة لجهة، تضغط الأنبوب وتسكره، ولمن ترجع تفتحه.</p>
+    <h2>الخطوات</h2>
+    <ol class="steps">
+      <li><b>القاعدة</b><p>قطعة كارتون مقوّى أو خشب، تقريباً 12 × 10 سم.</p></li>
+      <li><b>ارفع الـroller clamp</b><p>ثبّت قطعة خشب صغيرة على القاعدة، وفوقها الـroller clamp، حتى العجلة تصير بنفس ارتفاع ذراع السيرفو.</p></li>
+      <li><b>ثبّت جسم الـroller clamp</b><p>بالشريط أو أشرطة الربط، والعجلة لفوق والأنبوب مارّ بيه. جسمه ما لازم يتحرك، بس العجلة.</p></li>
+      <li><b>السيرفو جنبه</b><p>محوره واقف لفوق. والمسافة بين المحور وخط المجرى تساوي طول الذراع تقريباً.</p></li>
+      <li><b>الذراع على 90</b><p>أحرك السيرفو لـ90، وانت تركّب الذراع عمودي على المجرى، ورأسه فوق نص مسار العجلة.</p></li>
+      <li><b>الشوكة</b><p>كليبس مثني على شكل U يحضن العجلة من الجهتين، وطرفه يمر بثقب الذراع البعيد. مرخي شوية، لأن رأس الذراع يمشي على قوس والعجلة على خط.</p></li>
+      <li><b>نطلع الزوايا</b><p>أحرك بخطوات 5 درجات: زاوية السكر هي أول زاوية تسكر بيها العجلة الأنبوب، وزاوية الفتح بالجهة الثانية.</p></li>
+    </ol>
+    <p class="note">بهالرسم، الزوايا الأصغر من 90 تسكر والأكبر تفتح. بتركيبتك ممكن يطلع العكس، حسب جهة السيرفو. الأبعاد تقريبية.</p>
+  </aside>
+  <main class="stage" id="stage">
+    <canvas id="c" aria-label="نموذج ثلاثي الأبعاد لربط ذراع السيرفو بعجلة الـroller clamp"></canvas>
+    <div id="labels"></div>
+    <div class="hint">اسحب للتدوير، وكبّر بعجلة الماوس</div>
+    <div class="bar">
+      <div class="row">
+        <div class="seg" role="group" aria-label="أوامر">
+          <button type="button" data-go="140">افتح</button>
+          <button type="button" data-go="90">النص</button>
+          <button type="button" data-go="45">سكّر</button>
+          <button type="button" id="names" aria-pressed="true">الأسماء</button>
+        </div>
+        <div class="level">
+          <label for="ang">زاوية السيرفو</label>
+          <input id="ang" type="range" min="20" max="160" step="1" value="120">
+          <output id="angOut" for="ang" dir="ltr">120°</output>
+        </div>
+      </div>
+      <div class="read">
+        <span>العجلة <b id="rPos"></b></span>
+        <span>الأنبوب <b id="rTube"></b></span>
+        <span id="state" role="status"></span>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script>
+(function () {
+  const $ = id => document.getElementById(id);
+  const stage = $('stage');
+  const fail = msg => { const d = document.createElement('div'); d.className = 'fail'; d.textContent = msg; stage.append(d); };
+  if (!window.THREE || !THREE.OrbitControls) return fail('ما انفتح النموذج لأن مكتبة الرسم ما تحملت. حدّث الصفحة.');
+  const T = THREE;
+  let renderer;
+  try { renderer = new T.WebGLRenderer({ canvas: $('c'), antialias: true, alpha: true, preserveDrawingBuffer: true }); }
+  catch (e) { return fail('المتصفح ما يدعم WebGL، فما يگدر يعرض النموذج.'); }
+  const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+  renderer.outputEncoding = T.sRGBEncoding;
+  renderer.toneMapping = T.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = .9;
+
+  const scene = new T.Scene();
+  const camera = new T.PerspectiveCamera(28, 1, .2, 300);
+  const controls = new T.OrbitControls(camera, renderer.domElement);
+  controls.enableDamping = true; controls.dampingFactor = .08; controls.enablePan = false;
+  controls.minDistance = 6; controls.maxDistance = 80;
+  const TARGET = new T.Vector3(0, 3.3, -1.1);
+  controls.target.copy(TARGET);
+
+  const pm = new T.PMREMGenerator(renderer);
+  const es = new T.Scene(); es.background = new T.Color(0x3c4644);
+  [[0, 40, 0, 80, 4, 80, 2.2], [50, 8, 30, 4, 40, 50, 1.8], [-50, 0, 30, 4, 50, 30, 1]].forEach(a => {
+    const l = new T.Mesh(new T.BoxGeometry(a[3], a[4], a[5]), new T.MeshBasicMaterial({ color: new T.Color().setScalar(a[6]) }));
+    l.position.set(a[0], a[1], a[2]); es.add(l);
+  });
+  scene.environment = pm.fromScene(es, .03).texture;
+  const key = new T.DirectionalLight(0xffffff, .5); key.position.set(10, 30, 20); scene.add(key);
+
+  const mat = (c, r = .55, m = 0, o = {}) => new T.MeshStandardMaterial(Object.assign({ color: c, roughness: r, metalness: m }, o));
+  const add = (g, geo, m, x = 0, y = 0, z = 0) => { const k = new T.Mesh(geo, m); k.position.set(x, y, z); g.add(k); return k; };
+  const box = (g, w, h, d, m, x, y, z) => add(g, new T.BoxGeometry(w, h, d), m, x, y, z);
+  const cyl = (r, h, s = 28) => new T.CylinderGeometry(r, r, h, s);
+  const tube = (pts, r, s = 40) => new T.TubeGeometry(new T.CatmullRomCurve3(pts.map(p => new T.Vector3(...p))), s, r, 10, false);
+  const steel = () => mat(0xb9c1bf, .3, .95);
+  const wood = () => mat(0xb48a5a, .75);
+
+  const root = new T.Group(); scene.add(root);
+  const G = {};
+  const grp = id => { const g = new T.Group(); root.add(g); G[id] = g; return g; };
+
+  /* Base and the riser block that lifts the clamp to the horn's height. */
+  const base = grp('base');
+  box(base, 12, .5, 10, mat(0xc29a68, .75), 0, -.25, -1.5);
+  const riser = grp('riser');
+  box(riser, 7.4, 2.4, 2.2, wood(), 0, 1.2, 0);
+
+  /* Roller clamp: a channel with a ramp; the wheel squeezes the tube harder toward +x. */
+  const clamp = grp('clamp');
+  const cw = mat(0xe8ecec, .4);
+  box(clamp, 6.4, .25, 1.6, cw, 0, 2.52, 0);
+  box(clamp, 6.4, 1.2, .2, cw, 0, 3.05, .7);
+  box(clamp, 6.4, 1.2, .2, cw, 0, 3.05, -.7);
+  const ramp = add(clamp, new T.BoxGeometry(5.2, .18, 1.2), mat(0xd7dddd, .4), 0, 2.7, 0);
+  ramp.rotation.z = .05;
+  [-1, 1].forEach(s => box(clamp, 4.6, .08, .02, mat(0x9aa4a4, .5), 0, 3.5, s * .81));
+
+  const W_OPEN = -2.1, W_SHUT = 2.1, W_CLOSE_AT = 1.3;
+  const wheel = grp('wheel');
+  const wheelMesh = add(wheel, new T.CylinderGeometry(.55, .55, .9, 36).rotateX(Math.PI / 2), mat(0x2f6fd0, .4), 0, 3.42, 0);
+  for (let i = 0; i < 18; i++) {
+    const r = add(wheelMesh, new T.BoxGeometry(.08, .12, .92), mat(0x1f55a8, .4), 0, 0, 0);
+    const a = i / 18 * Math.PI * 2; r.position.set(Math.cos(a) * .55, Math.sin(a) * .55, 0); r.rotation.z = a;
+  }
+
+  /* Tube: passes along the channel; the stretch under the wheel flattens as it closes. */
+  const tubeG = grp('tube');
+  const tubeM = mat(0xdfeaea, .2, 0, { transparent: true, opacity: .75 });
+  add(tubeG, new T.CylinderGeometry(.22, .22, 4.2, 20).rotateZ(Math.PI / 2), tubeM, -5.2, 2.85, 0);
+  add(tubeG, new T.CylinderGeometry(.22, .22, 4.2, 20).rotateZ(Math.PI / 2), tubeM, 5.2, 2.85, 0);
+  const SEG = 24, segs = [];
+  for (let i = 0; i < SEG; i++) {
+    const x = -3.2 + (i + .5) * 6.4 / SEG;
+    segs.push(add(tubeG, new T.CylinderGeometry(.22, .22, 6.4 / SEG + .01, 20).rotateZ(Math.PI / 2), tubeM, x, 2.85, 0));
+  }
+  const liquid = add(tubeG, new T.CylinderGeometry(.12, .12, 4, 16).rotateZ(Math.PI / 2), mat(0x3fa9c9, .2, 0, { transparent: true, opacity: .8 }), 5.2, 2.85, 0);
+
+  /* Servo lying beside the clamp, shaft up; its horn sweeps over the wheel's path. */
+  const ZS = -2.6, HL = 2.6;
+  const servo = grp('servo');
+  box(servo, 4, 3.4, 2, mat(0x1e2528, .45, .1), 1, 1.7, ZS);
+  box(servo, 5.4, .22, 2, mat(0x1e2528, .45), 1, 2.95, ZS);
+  [-1.4, 3.4].forEach(x => add(servo, cyl(.16, .3, 10), steel(), x, 3.1, ZS));
+  add(servo, cyl(.55, .5), mat(0x1e2528, .45), 0, 3.6, ZS);
+  add(servo, cyl(.25, .4), steel(), 0, 3.95, ZS);
+  const hornPivot = new T.Group(); hornPivot.position.set(0, 4.2, ZS); servo.add(hornPivot);
+  const hornM = mat(0xf0f1ee, .45);
+  add(hornPivot, cyl(.5, .2), hornM, 0, 0, 0);
+  const arm = add(hornPivot, new T.BoxGeometry(HL, .2, .5), hornM, HL / 2, 0, 0);
+  [.9, 1.6, 2.3].forEach(d => add(hornPivot, cyl(.07, .22, 10), mat(0x2a2f30, .8), d, 0, 0));
+  const servoCable = add(servo, tube([[3, 1.4, ZS - 1], [4.2, 1.2, ZS - 1.8], [6, .6, ZS - 2.6], [8, .3, ZS - 3]], .1), mat(0xc97d2c, .55));
+
+  /* Fork: a bent paperclip from the horn tip that straddles the wheel. */
+  const forkG = grp('fork');
+  const forkM = mat(0xc7cdcb, .3, .9);
+  let forkMesh = null;
+  const buildFork = (tip, wx) => {
+    if (forkMesh) { forkG.remove(forkMesh); forkMesh.geometry.dispose(); }
+    const top = 4.32, low = 3.1, h = .58;
+    const pts = [
+      [tip.x, tip.y - .05, tip.z], [tip.x, top + .12, tip.z], [(tip.x + wx) / 2, top + .1, (tip.z) / 2],
+      [wx, top, 0], [wx - h, top, 0], [wx - h, low, 0]
+    ];
+    const g1 = tube(pts, .045, 50);
+    const g2 = tube([[wx, top, 0], [wx + h, top, 0], [wx + h, low, 0]], .045, 20);
+    const merged = new T.Group(); merged.add(new T.Mesh(g1, forkM)); merged.add(new T.Mesh(g2, forkM));
+    forkMesh = merged; forkG.add(merged);
+    forkMesh.geometry = { dispose() { g1.dispose(); g2.dispose(); } };
+  };
+
+  const LABELS = [
+    ['السيرفو', 'servo', 2.6, 3.4, ZS - 1, 0],
+    ['الذراع', 'horn', 0, 0, 0, 1],
+    ['الشوكة (كليبس)', 'forkTop', 0, 0, 0, 1],
+    ['العجلة', 'wheel', 0, 4.1, .6, 1],
+    ['جسم الـroller clamp مثبت', 'clamp', -2.6, 3.7, .9, 0],
+    ['الأنبوب', 'tube', 6.2, 3.1, 0, 0],
+    ['خشبة ترفعه', 'riser', -3.4, 1.4, 1.1, 0],
+    ['القاعدة', 'base', -5.2, .1, 2.4, 0]
+  ];
+  const lblBox = $('labels');
+  const lbls = LABELS.map(l => { const d = document.createElement('div'); d.className = 'lbl' + (l[5] ? ' key' : ''); d.textContent = l[0]; lblBox.append(d); return d; });
+  let showNames = true;
+  $('names').addEventListener('click', e => { showNames = !showNames; e.currentTarget.setAttribute('aria-pressed', String(showNames)); lblBox.hidden = !showNames; });
+
+  let ang = 120, angT = 120, tip = new T.Vector3(), wx = 0;
+  const setT = v => { angT = Math.max(20, Math.min(160, v)); $('ang').value = Math.round(angT); $('angOut').textContent = Math.round(angT) + '°'; if (reduced) ang = angT; };
+  $('ang').addEventListener('input', e => { angT = +e.target.value; ang = angT; $('angOut').textContent = angT + '°'; });
+  document.querySelectorAll('[data-go]').forEach(b => b.addEventListener('click', () => setT(+b.dataset.go)));
+
+  const apply = () => {
+    const phi = ang * Math.PI / 180;
+    hornPivot.rotation.y = -phi;
+    tip.set(HL, 0, 0).applyAxisAngle(new T.Vector3(0, 1, 0), -phi).add(hornPivot.position);
+    wx = Math.max(W_OPEN, Math.min(W_SHUT, tip.x));
+    wheel.position.x = wx;
+    wheelMesh.rotation.z = -wx / .55;
+    buildFork(tip, wx);
+    const squeeze = Math.max(0, Math.min(1, (wx - W_OPEN) / (W_CLOSE_AT - W_OPEN)));
+    segs.forEach(s => {
+      const d = Math.abs(s.position.x - wx), k = Math.max(0, 1 - d / .9);
+      s.scale.set(1, 1 - .78 * squeeze * k, 1 + .25 * squeeze * k);
+      s.position.y = 2.85 - .17 * squeeze * k;
+    });
+    const open = 1 - squeeze;
+    liquid.visible = open > .02;
+    liquid.scale.set(1, Math.max(.2, open), Math.max(.2, open));
+    $('rPos').textContent = wx >= W_CLOSE_AT ? 'آخر المجرى' : wx <= W_OPEN + .05 ? 'أول المجرى' : 'بالنص';
+    $('rTube').textContent = Math.round(open * 100) + '% مفتوح';
+    const s = $('state');
+    s.className = open < .02 ? 'shut' : '';
+    s.textContent = open < .02 ? 'مسكّر، ماكو تنقيط' : open > .95 ? 'مفتوح بالكامل' : 'التنقيط أبطأ';
+  };
+
+  const resize = () => {
+    const W = stage.clientWidth, H = stage.clientHeight;
+    if (!W || !H) return;
+    renderer.setSize(W, H, false);
+    camera.aspect = W / H;
+    const tan = Math.tan(T.MathUtils.degToRad(camera.fov / 2));
+    const barH = stage.querySelector('.bar').offsetHeight + 24, room = Math.max(.45, (H - barH) / H);
+    const fit = Math.max(8 / (2 * tan), 11.5 / (2 * tan * camera.aspect)) / room;
+    camera.setViewOffset(W, H, 0, barH / 2, W, H);
+    if (!resize.done) { camera.position.copy(TARGET).addScaledVector(new T.Vector3(.3, 1.5, .85).normalize(), fit); resize.done = true; }
+    camera.updateProjectionMatrix();
+  };
+  new ResizeObserver(resize).observe(stage);
+  resize();
+
+  const v = new T.Vector3(), clock = new T.Clock(); let last = -1;
+  const anchors = {
+    horn: () => new T.Vector3(HL * .6, .25, 0).applyAxisAngle(new T.Vector3(0, 1, 0), -ang * Math.PI / 180).add(hornPivot.position),
+    forkTop: () => new T.Vector3(wx, 4.45, 0)
+  };
+  const frame = () => {
+    if (!resize.done) return requestAnimationFrame(frame);
+    const dt = Math.min(clock.getDelta(), .05);
+    ang += (angT - ang) * (1 - Math.exp(-dt * 5));
+    if (Math.abs(ang - last) > .05) { apply(); last = ang; }
+    controls.update();
+    renderer.render(scene, camera);
+    if (showNames) {
+      const W = stage.clientWidth, H = stage.clientHeight;
+      LABELS.forEach((l, i) => {
+        if (anchors[l[1]]) v.copy(anchors[l[1]]()); else v.set(l[2], l[3], l[4]).add(G[l[1]].position);
+        v.project(camera);
+        const el = lbls[i], vis = v.z < 1 && Math.abs(v.x) < 1.1 && Math.abs(v.y) < 1.1;
+        el.style.visibility = vis ? 'visible' : 'hidden';
+        el.style.transform = 'translate(' + ((v.x + 1) / 2 * W) + 'px,' + ((1 - v.y) / 2 * H) + 'px) translate(-50%,-110%)';
+      });
+    }
+    requestAnimationFrame(frame);
+  };
+  apply();
+  frame();
+})();
+</script>

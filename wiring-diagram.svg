@@ -1,0 +1,122 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="1000" viewBox="0 0 1400 1000" font-family="Segoe UI, Tahoma, Arial, sans-serif">
+  <rect width="1400" height="1000" fill="#f6f8f7"/>
+  <text x="1360" y="58" text-anchor="end" font-size="30" font-weight="700" fill="#12302f">مخطط توصيل مراقب المحلول</text>
+  <text x="1360" y="92" text-anchor="end" font-size="17" fill="#4b6462">‫ESP32 و HX711 و load cell 3 كغم، والسيرفو على باور بانك‬</text>
+
+  <!-- Rails -->
+  <line x1="500" y1="130" x2="600" y2="130" stroke="#d23a33" stroke-width="5" stroke-linecap="round"/>
+  <text x="550" y="118" text-anchor="middle" font-size="15" font-weight="600" fill="#d23a33">3V3</text>
+  <line x1="1050" y1="480" x2="1340" y2="480" stroke="#e07a1f" stroke-width="5" stroke-linecap="round"/>
+  <text x="1340" y="468" text-anchor="end" font-size="15" font-weight="600" fill="#c46410">‫خط 5V من الباور بانك‬</text>
+  <line x1="520" y1="770" x2="1340" y2="770" stroke="#3b4442" stroke-width="5" stroke-linecap="round"/>
+  <text x="1340" y="796" text-anchor="end" font-size="15" font-weight="600" fill="#3b4442">‫GND مشترك‬</text>
+
+  <!-- Load cell -->
+  <rect x="40" y="190" width="170" height="150" rx="12" fill="#e9eceb" stroke="#8a9592"/>
+  <text x="125" y="218" text-anchor="middle" font-size="18" font-weight="700" fill="#12302f">Load cell</text>
+  <text x="125" y="238" text-anchor="middle" font-size="13" fill="#4b6462">‫3 كغم‬</text>
+  <g font-size="14" fill="#12302f" text-anchor="end">
+    <text x="200" y="265">أحمر</text><text x="200" y="290">أسود</text><text x="200" y="315">أخضر</text><text x="200" y="335">أبيض</text>
+  </g>
+
+  <!-- HX711 -->
+  <rect x="300" y="180" width="170" height="180" rx="12" fill="#dcefe3" stroke="#14713f"/>
+  <text x="385" y="208" text-anchor="middle" font-size="18" font-weight="700" fill="#0f4d2b">HX711</text>
+  <g font-size="14" fill="#0f4d2b">
+    <text x="310" y="265">E+</text><text x="310" y="290">E-</text><text x="310" y="315">A+</text><text x="310" y="335">A-</text>
+    <text x="460" y="235" text-anchor="end">VCC</text><text x="460" y="275" text-anchor="end">DT</text>
+    <text x="460" y="305" text-anchor="end">SCK</text><text x="460" y="345" text-anchor="end">GND</text>
+  </g>
+  <g stroke-width="4" fill="none">
+    <line x1="210" y1="260" x2="300" y2="260" stroke="#d23a33"/>
+    <line x1="210" y1="285" x2="300" y2="285" stroke="#1d2221"/>
+    <line x1="210" y1="310" x2="300" y2="310" stroke="#3f9a44"/>
+    <line x1="210" y1="331" x2="300" y2="331" stroke="#b4b8b6" stroke-dasharray="8 5"/>
+  </g>
+
+  <!-- ESP32 -->
+  <rect x="620" y="150" width="200" height="580" rx="14" fill="#e6e3f7" stroke="#534ab7"/>
+  <text x="720" y="182" text-anchor="middle" font-size="22" font-weight="700" fill="#2d2770">ESP32</text>
+  <g font-size="15" fill="#2d2770">
+    <text x="632" y="236">3V3</text><text x="632" y="276">D18</text><text x="632" y="306">D19</text><text x="632" y="696">GND</text>
+    <text x="808" y="216" text-anchor="end">D32</text>
+    <text x="808" y="576" text-anchor="end">D26</text><text x="808" y="606" text-anchor="end">D27</text>
+    <text x="808" y="636" text-anchor="end">D25</text><text x="808" y="666" text-anchor="end">D33</text>
+  </g>
+  <rect x="690" y="730" width="60" height="22" rx="4" fill="#9aa2a0"/>
+    <text x="720" y="830" text-anchor="middle" font-size="15" fill="#12302f">‫USB للابتوب، أو لمنفذ ثاني بالباور بانك‬</text>
+
+  <!-- HX711 to ESP32 and rails -->
+  <g stroke-width="4" fill="none">
+    <path d="M470 230 H520 V130" stroke="#d23a33"/>
+    <path d="M620 230 H580 V130" stroke="#d23a33"/>
+    <line x1="470" y1="270" x2="620" y2="270" stroke="#6c5fd3"/>
+    <line x1="470" y1="300" x2="620" y2="300" stroke="#1c9b8c"/>
+    <path d="M470 340 H540 V770" stroke="#3b4442"/>
+    <path d="M620 690 H570 V770" stroke="#3b4442"/>
+  </g>
+  <g fill="#d23a33"><circle cx="520" cy="130" r="7"/><circle cx="580" cy="130" r="7"/></g>
+  <g fill="#3b4442"><circle cx="540" cy="770" r="7"/><circle cx="570" cy="770" r="7"/></g>
+
+  <!-- Servo -->
+  <rect x="1060" y="150" width="200" height="110" rx="12" fill="#fbe3d6" stroke="#d85a30"/>
+  <text x="1160" y="182" text-anchor="middle" font-size="20" font-weight="700" fill="#7a2f12">السيرفو</text>
+  <text x="1160" y="205" text-anchor="middle" font-size="13" fill="#7a2f12">عبر سلك التمديد</text>
+  <g font-size="13" fill="#7a2f12"><text x="1072" y="236">بني -</text><text x="1118" y="252">أحمر +</text></g>
+  <g stroke-width="4" fill="none">
+    <line x1="820" y1="210" x2="1060" y2="210" stroke="#f0a020"/>
+    <path d="M1060 240 H1030 V770" stroke="#7a3d16"/>
+    <path d="M1110 260 V480" stroke="#d23a33"/>
+  </g>
+  <text x="940" y="200" text-anchor="middle" font-size="14" fill="#9a6200">برتقالي، الإشارة</text>
+  <circle cx="1110" cy="480" r="7" fill="#e07a1f"/><circle cx="1030" cy="770" r="7" fill="#3b4442"/>
+
+  <!-- Power bank and cut cable -->
+  <rect x="1080" y="560" width="160" height="110" rx="12" fill="#3a4245"/>
+  <text x="1160" y="604" text-anchor="middle" font-size="19" font-weight="700" fill="#f2f4f3">باور بانك</text>
+  <text x="1160" y="630" text-anchor="middle" font-size="13" fill="#d7dcda">‫كيبل USB مقصوص‬</text>
+  <g stroke-width="4" fill="none">
+    <path d="M1130 560 V480" stroke="#d23a33"/>
+    <path d="M1190 670 V770" stroke="#1d2221"/>
+  </g>
+  <text x="1138" y="530" font-size="13" fill="#12302f">أحمر</text>
+  <text x="1182" y="726" text-anchor="end" font-size="13" fill="#12302f">أسود</text>
+  <circle cx="1130" cy="480" r="7" fill="#e07a1f"/><circle cx="1190" cy="770" r="7" fill="#3b4442"/>
+
+  <!-- Capacitor -->
+  <g stroke-width="4" fill="none">
+    <path d="M1300 480 V606" stroke="#e07a1f"/>
+    <path d="M1300 626 V770" stroke="#3b4442"/>
+  </g>
+  <line x1="1278" y1="606" x2="1322" y2="606" stroke="#12302f" stroke-width="5"/>
+  <path d="M1278 620 Q1300 632 1322 620" stroke="#12302f" stroke-width="5" fill="none"/>
+  <text x="1330" y="603" font-size="15" font-weight="700" fill="#12302f">+</text>
+  <circle cx="1300" cy="480" r="7" fill="#e07a1f"/><circle cx="1300" cy="770" r="7" fill="#3b4442"/>
+  <text x="1250" y="706" text-anchor="middle" font-size="14" font-weight="600" fill="#12302f">مكثف</text>
+  <text x="1250" y="724" text-anchor="middle" font-size="13" fill="#12302f">1000µF 16V</text>
+  <text x="1250" y="742" text-anchor="middle" font-size="12" fill="#4b6462">‫الطويلة على 5V‬</text>
+
+  <!-- Optional parts -->
+  <rect x="850" y="540" width="170" height="160" rx="12" fill="none" stroke="#8a9592" stroke-dasharray="7 6"/>
+  <text x="935" y="534" text-anchor="middle" font-size="13" fill="#4b6462">اختياري</text>
+  <g font-size="13" fill="#12302f">
+    <text x="900" y="576">‫ضو أخضر + 220Ω‬</text><text x="900" y="606">‫ضو أحمر + 220Ω‬</text>
+    <text x="900" y="636">بزر</text><text x="900" y="666">زر تصفير</text>
+  </g>
+  <g stroke-width="3" fill="none">
+    <line x1="820" y1="571" x2="895" y2="571" stroke="#3f9a44"/>
+    <line x1="820" y1="601" x2="895" y2="601" stroke="#d23a33"/>
+    <line x1="820" y1="631" x2="895" y2="631" stroke="#ba7517"/>
+    <line x1="820" y1="661" x2="895" y2="661" stroke="#378add"/>
+    <path d="M1005 571 V770" stroke="#3b4442" stroke-dasharray="6 4"/>
+  </g>
+  <circle cx="1005" cy="770" r="6" fill="#3b4442"/>
+  <text x="935" y="690" text-anchor="middle" font-size="12" fill="#4b6462">‫الطرف الثاني لكل وحدة على GND‬</text>
+
+  <!-- Notes -->
+  <g font-size="16" fill="#12302f" text-anchor="end">
+    <text x="1360" y="880">‫١. خط 5V مال السيرفو منفصل عن 3V3، ولا يتوصل بـ VIN بالـESP32.‬</text>
+    <text x="1360" y="910">‫٢. كل الـGND على خط واحد: الـESP32 والـHX711 والسيرفو والباور بانك والمكثف.‬</text>
+    <text x="1360" y="940">٣. إذا الوزن يقل لمن تضيف، بدّل الأخضر والأبيض. النقطة الملوّنة تعني توصيل.</text>
+  </g>
+</svg>
