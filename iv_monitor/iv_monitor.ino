@@ -22,6 +22,7 @@
 #include <time.h>
 #include "mbedtls/md.h"
 #include <esp_task_wdt.h>
+#include "soc/rtc_cntl_reg.h"
 #include <Wire.h>
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
@@ -659,7 +660,12 @@ void setup() {
 
   bool openSetup = prefs.getBool("setup", false);   // asked for from the page
   if (openSetup) prefs.putBool("setup", false);
+  // Starting the radio draws a short burst of current that a weak USB port cannot give: the voltage dips and the
+  // brownout guard restarts the chip, over and over. The guard is off only while the radio starts, then back on.
+  uint32_t brownout = READ_PERI_REG(RTC_CNTL_BROWN_OUT_REG);
+  WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0);
   setupNetwork(forget, openSetup);
+  WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, brownout);
   wifiDrops = 0;   // drops while joining at start do not count
   setupWeb();
   if (USE_MQTT) setupMqtt();
