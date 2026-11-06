@@ -1,4 +1,4 @@
-// The page the ESP32 serves at http://192.168.4.1. Self-contained: the phone has no internet on this Wi-Fi.
+// The page the ESP32 serves on the local network (its IP is on the screen). Self-contained: no internet needed.
 #pragma once
 
 const char PAGE[] PROGMEM = R"rawliteral(<!doctype html>
@@ -56,7 +56,9 @@ details[open] summary::after{content:"−"}
 .grid{display:grid;gap:12px;margin-top:14px}
 .field{display:grid;grid-template-columns:1fr 92px auto;gap:8px;align-items:center}
 .field label{font-size:14px}
-input{font:inherit;width:100%;padding:8px 10px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--ink);text-align:center}
+input,select{font:inherit;width:100%;padding:8px 10px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--ink);text-align:center}
+.check{display:flex;gap:10px;align-items:center;font-size:14px}
+.check input{width:20px;height:20px;accent-color:var(--accent)}
 .sep{border-top:1px solid var(--line);margin:4px 0}
 #msg{min-height:1.4em;font-size:13.5px;color:var(--muted)}
 #msg.err{color:var(--bad)}
@@ -98,14 +100,12 @@ input{font:inherit;width:100%;padding:8px 10px;border-radius:10px;border:1px sol
       <button type="button" id="bOpen" aria-pressed="false">فتح</button>
       <button type="button" id="bClose" class="solid" aria-pressed="false">إغلاق</button>
     </div>
-    <p class="note" id="vnote">للاختبار بالماء فقط، ولا يُستخدم على المرضى.</p>
   </section>
 
   <section class="card">
     <details id="settings">
       <summary>الإعدادات والمعايرة</summary>
       <div class="grid">
-        <p class="note" id="remoteInfo"></p>
         <div class="field">
           <label for="tareBtn">تصفير الميزان (دون حمل على الخطاف)</label><span></span>
           <button type="button" class="small" id="tareBtn">تصفير</button>
@@ -117,11 +117,21 @@ input{font:inherit;width:100%;padding:8px 10px;border-radius:10px;border:1px sol
         </div>
         <div class="sep"></div>
         <div class="field"><label for="emptyG">وزن الكيس الفارغ (غرام)</label><input id="emptyG" type="number" inputmode="decimal" min="0"><span></span></div>
+        <label class="check"><input type="checkbox" id="alerts"> تفعيل التنبيهات (الجرس والضوء الأحمر وتنبيه الشاشة)</label>
         <div class="field"><label for="lowMl">حدّ تنبيه انخفاض الكمية (مل)</label><input id="lowMl" type="number" inputmode="decimal" min="0"><span></span></div>
         <div class="field"><label for="autoCloseMl">الإغلاق التلقائي عند (مل، 0 للتعطيل)</label><input id="autoCloseMl" type="number" inputmode="decimal" min="0"><span></span></div>
         <div class="field"><label for="openDeg">زاوية الفتح</label><input id="openDeg" type="number" inputmode="numeric" min="0" max="180"><button type="button" class="small" data-try="openDeg">اختبار</button></div>
         <div class="field"><label for="closeDeg">زاوية الإغلاق</label><input id="closeDeg" type="number" inputmode="numeric" min="0" max="180"><button type="button" class="small" data-try="closeDeg">اختبار</button></div>
         <button type="button" class="solid" id="saveBtn">حفظ الإعدادات</button>
+        <div class="sep"></div>
+        <div class="field">
+          <label for="vReal">حالة الصمام الفعلية، لتصحيح الحالة المعروضة دون تحريك المحرك</label>
+          <select id="vReal"><option value="open">مفتوح</option><option value="closed">مغلق</option></select>
+          <button type="button" class="small" id="vRealBtn">تثبيت</button>
+        </div>
+        <div class="sep"></div>
+        <p class="note" id="netInfo"></p>
+        <button type="button" id="wifiBtn">ربط الجهاز بشبكة واي فاي أخرى</button>
         <div id="msg" role="status"></div>
       </div>
     </details>
@@ -162,9 +172,15 @@ function render(s) {
   $('vstate').textContent = v + (s.autoClosed ? ' (أُغلق تلقائياً عند انخفاض الكمية)' : '');
   $('bOpen').setAttribute('aria-pressed', String(s.valve === 'open'));
   $('bClose').setAttribute('aria-pressed', String(s.valve === 'closed'));
+  if (document.activeElement !== $('vReal') && s.valve !== 'unknown') $('vReal').value = s.valve;
+
+  $('netInfo').textContent = (s.ssid ? 'متصل بشبكة ' + s.ssid + ' على العنوان ' + s.ip : 'غير متصل بأي راوتر حالياً، والجهاز يبحث عن الشبكة المحفوظة')
+    + '. ' + (s.mqtt ? 'اللوحة على الإنترنت تعمل.' : 'اللوحة على الإنترنت غير متصلة الآن.')
+    + ' شبكة الجهاز IV-Monitor تعمل دائماً على 192.168.4.1.';
 
   if (!filled) {
     ['emptyG', 'lowMl', 'autoCloseMl', 'openDeg', 'closeDeg'].forEach(k => $(k).value = fmt(s[k]));
+    $('alerts').checked = !!s.alerts;
     filled = true;
   }
   draw(s.chart || []);
@@ -192,7 +208,7 @@ function draw(pts) {
 
 function setConn(ok) {
   $('conn').className = ok ? 'conn' : 'conn off';
-  $('connText').textContent = ok ? (last && last.mqtt ? 'متصل، والسحابة متصلة' : 'متصل') : 'انقطع الاتصال';
+  $('connText').textContent = ok ? 'متصل' : 'انقطع الاتصال';
 }
 
 async function poll() {
@@ -226,6 +242,19 @@ document.querySelectorAll('[data-try]').forEach(b => b.onclick = () => {
   if (!(d >= 0 && d <= 180)) { say('يجب أن تكون الزاوية بين 0 و180.', true); return; }
   act('/api/servo', { deg: d }, 'تم تحريك المحرك إلى ' + d + ' درجة.');
 });
+$('alerts').onchange = () => {
+  const on = $('alerts').checked;
+  act('/api/set', { alerts: on ? 1 : 0 }, on ? 'تم تفعيل التنبيهات.' : 'تم إيقاف التنبيهات.');
+};
+$('vRealBtn').onclick = () => {
+  const is = $('vReal').value;
+  act('/api/valvestate', { is }, 'تم تسجيل الصمام ' + (is === 'open' ? 'مفتوحاً' : 'مغلقاً') + '.');
+};
+$('wifiBtn').onclick = async () => {
+  if (!confirm('سيُعاد تشغيل الجهاز ويفتح صفحة اختيار الشبكة لمدة 3 دقائق. ادخل شبكة IV-Monitor (كلمة المرور 12345678) ثم افتح 192.168.4.1 واختر الشبكة الجديدة. هل تتابع؟')) return;
+  try { await fetch('/api/wifisetup', { method: 'POST' }); } catch (e) {}
+  say('يُعاد تشغيل الجهاز الآن. ادخل شبكة IV-Monitor وافتح 192.168.4.1.');
+};
 $('saveBtn').onclick = () => {
   const body = {};
   for (const k of ['emptyG', 'lowMl', 'autoCloseMl', 'openDeg', 'closeDeg']) {
@@ -233,11 +262,9 @@ $('saveBtn').onclick = () => {
     if (isNaN(v) || v < 0) { say('تحقق من قيمة "' + $(k).labels[0].textContent + '".', true); return; }
     body[k] = v;
   }
+  body.alerts = $('alerts').checked ? 1 : 0;
   act('/api/set', body, 'تم حفظ الإعدادات.');
 };
-fetch('/api/info').then(r => r.json()).then(i => {
-  $('remoteInfo').textContent = 'للدخول من لوحة التحكم عن بعد: اسم الجهاز ' + i.id + '، ورمز التحكم ' + i.key + '.';
-}).catch(() => {});
 poll();
 </script>
 </body>

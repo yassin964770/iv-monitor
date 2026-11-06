@@ -129,8 +129,8 @@ void screenSetup() {
 
 void screenNetResult() {
   screenHoldUntil = millis() + 4000;
-  if (onRouter) screenMessage("Connected", WiFi.SSID(), WiFi.localIP().toString(), deviceId);
-  else screenMessage("Offline", String("Wi-Fi ") + AP_SSID, String("Pass ") + AP_PASS, "Open 192.168.4.1");
+  if (onRouter) screenMessage("Connected", WiFi.SSID(), WiFi.localIP().toString(), String("also ") + AP_SSID);
+  else screenMessage("No router", String("Wi-Fi ") + AP_SSID, String("Pass ") + AP_PASS, "Open 192.168.4.1");
 }
 
 // Top row: Wi-Fi bars (or "AP" on its own network), a cloud when MQTT is up, the weight on the right.
@@ -153,7 +153,8 @@ void statusBar() {
     oled.setCursor(0, 0);
     oled.print("AP");
   }
-  if (mqtt.connected()) {   // a small cloud: filled when online, an outline with a gap when not
+  if (!USE_MQTT) {
+  } else if (mqtt.connected()) {   // a small cloud: filled when online, an outline with a gap when not
     oled.fillCircle(17, 4, 2, SSD1306_WHITE);
     oled.fillCircle(21, 3, 3, SSD1306_WHITE);
     oled.fillCircle(25, 4, 2, SSD1306_WHITE);
@@ -182,6 +183,36 @@ void valveBand() {
   }
   centred(v, y + 3, 1);
   oled.setTextColor(SSD1306_WHITE);
+}
+
+// Where to open the page, shown until someone does. Each part of the address on its own large line.
+void screenAddress() {
+  oled.clearDisplay();
+  oled.fillRect(0, 0, W, 13, SSD1306_WHITE);
+  oled.setTextColor(SSD1306_BLACK);
+  centred("OPEN PAGE", 3, 1);
+  oled.setTextColor(SSD1306_WHITE);
+  // On a router: its address and the device's own Wi-Fi in turn, 5 s each. Either one opens the same page.
+  bool router = onRouter && WiFi.status() == WL_CONNECTED && (millis() / 5000) % 2 == 0;
+  String ip;
+  if (router) {
+    ip = WiFi.localIP().toString();
+    centred("in a browser", 17, 1);
+  } else {
+    ip = WiFi.softAPIP().toString();
+    centred(String("Join ") + AP_SSID, 17, 1);
+  }
+  int y = 30;
+  while (ip.length()) {
+    int dot = ip.indexOf('.');
+    String part = dot < 0 ? ip : ip.substring(0, dot + 1);
+    ip = dot < 0 ? "" : ip.substring(dot + 1);
+    centred(part, y, 2);
+    y += 18;
+  }
+  if (router) { centred("iv-monitor", 104, 1); centred(".local", 114, 1); }
+  else wrapped(String("Pass ") + AP_PASS, 104);
+  oled.display();
 }
 
 // Alerts take the whole screen and blink, to be seen from across the room.
@@ -214,9 +245,11 @@ void screenDraw() {
   if (factor == 1) { screenMessage("Calibrate", "Not calibrated yet", "Tare with the hook empty", "then hang a known weight"); return; }
   if (isnan(curG)) { screenMessage("IV Monitor", "Reading the scale..."); return; }
 
-  bool alarmOn = valveState != 1;
+  bool alarmOn = alertsOn && valveState != 1;
   if (alarmOn && strcmp(curState, "low") == 0) { alertScreen("LOW", String((int)curMl) + " ml left", blink); return; }
   if (alarmOn && strcmp(curState, "stopped") == 0) { alertScreen("NO FLOW", "valve open, weight steady", blink); return; }
+
+  if (!pageOpened) { screenAddress(); return; }
 
   oled.clearDisplay();
   statusBar();

@@ -103,7 +103,6 @@ input[dir=ltr]{text-align:left}
       <button type="button" id="bOpen" aria-pressed="false">فتح</button>
       <button type="button" id="bClose" class="solid" aria-pressed="false">إغلاق</button>
     </div>
-    <p class="note" id="vnote">للاختبار بالماء فقط، ولا يُستخدم على المرضى.</p>
   </section>
 
   <p class="note" id="health" role="status"></p>
@@ -183,6 +182,7 @@ function health(s) {
   if (s.up == null) { $('health').textContent = ''; return; }
   const up = s.up < 3600 ? Math.round(s.up / 60) + ' دقيقة' : (s.up / 3600).toFixed(1) + ' ساعة';
   const parts = ['يعمل منذ ' + up];
+  if (s.ssid) parts.push('متصل بشبكة ' + s.ssid + '، صفحته المحلية http://' + s.ip);
   if (s.rssi != null) parts.push('إشارة الوايفاي ' + s.rssi + ' dBm' + (s.rssi < -75 ? ' (ضعيفة)' : ''));
   if (s.drops > 0) parts.push('انقطع الوايفاي ' + s.drops + ' مرة' + (WHY[s.why] ? '، آخرها بسبب ' + WHY[s.why] : ''));
   if (s.boot === 'brownout') parts.push('أُعيد تشغيله لضعف التغذية الكهربائية');

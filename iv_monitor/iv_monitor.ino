@@ -1,5 +1,5 @@
 // IV bag monitor: weight, amount left and flow rate, a valve servo, a local page, and MQTT for the online dashboard.
-// Libraries: "HX711 Arduino Library" (Bogdan Necula), "ESP32Servo", "WiFiManager" (tzapu), "PubSubClient", from the Library Manager.
+// Libraries: "HX711 Arduino Library" (Bogdan Necula), "WiFiManager" (tzapu), "PubSubClient", from the Library Manager.
 //
 // Network:
 //   First boot, or when the saved Wi-Fi cannot be found: the ESP32 opens "IV-Monitor-Setup" (password below).
@@ -19,7 +19,6 @@
 #include <PubSubClient.h>
 #include <HX711.h>
 #include <Preferences.h>
-#include <ESP32Servo.h>
 #include <time.h>
 #include "mbedtls/md.h"
 #include <esp_task_wdt.h>
@@ -28,12 +27,15 @@
 #include <Adafruit_SSD1306.h>
 #include "page.h"
 
+// Remote control over MQTT, for the GitHub Pages dashboard. The local page and the device's own Wi-Fi work either way.
+#define USE_MQTT 1
+
 // Screens, in screen.ino.
 void screenMessage(const String &title, const String &a, const String &b = "", const String &c = "");
 extern unsigned long screenHoldUntil;
 
 const char *AP_SSID = "IV-Monitor";
-const char *SETUP_SSID = "IV-Monitor-Setup";
+const char *SETUP_SSID = "IV-Monitor";   // one name: the same network gives the setup page or the control page
 const char *AP_PASS = "12345678";   // 8 characters or more, for both of the device's own networks
 const int SETUP_TIMEOUT_S = 180;    // how long the setup page waits before the device goes on alone
 
@@ -41,6 +43,7 @@ const int SETUP_TIMEOUT_S = 180;    // how long the setup page waits before the 
 // The public broker needs no account, but anyone can read what is on it: commands are therefore signed with the control key.
 const char *DEFAULT_MQTT_HOST = "broker.hivemq.com";
 const char *DEFAULT_MQTT_PORT = "8883";
+const int MQTT_FALLBACK_PORT = 1883;   // tried when a network blocks 8883; commands are still signed, readings travel unencrypted
 const char *DEFAULT_CONTROL_KEY = "Wq7rT2kZ9pLm4xVb";   // the dashboard needs the same key; change it for your own device
 const long long CMD_WINDOW_MS = 120000;                 // a signed command older than this is refused
 
@@ -58,7 +61,6 @@ const unsigned long MQTT_EVERY_MS = 2000;  // how often the state goes to MQTT
 
 HX711 scale;
 Preferences prefs;
-Servo valve;
 WebServer server(80);
 DNSServer dns;
 WiFiClientSecure tlsClient;
@@ -67,6 +69,7 @@ PubSubClient mqtt;
 
 // Settings, kept in the ESP32's flash.
 float factor = 1, emptyBagG = 30, lowMl = 50, autoCloseMl = 0;
+bool alertsOn = false;          // buzzer, red light and alert screens: off unless turned on from the page
 long offset = 0;
 int openDeg = 160, closeDeg = 135;   // closing turns 25 degrees counter-clockwise from open
 char mqttHost[80] = "", mqttPort[6] = "", mqttUser[48] = "", mqttPass[64] = "", deviceId[24] = "", controlKey[40] = "";
@@ -86,7 +89,8 @@ int chartN = 0, chartHead = 0, chartTick = 0;
 float curG = NAN, curMl = NAN, curRate = NAN;
 int curMins = -1;
 const char *curState = "warming";
-int valveState = -1;            // -1 unknown, 0 open, 1 closed
+int valveState = -1;            // -1 unknown, 0 open, 1 closed; kept across restarts
+bool pageOpened = false;        // until someone opens the page, the screen shows its address
 bool autoClosed = false;
 bool onRouter = false;          // true: joined the router; false: running its own Wi-Fi
 // Network health, published with the state so a drop can be explained afterwards.
@@ -115,6 +119,7 @@ void save() {
   prefs.putFloat("auto", autoCloseMl);
   prefs.putInt("open", openDeg);
   prefs.putInt("close", closeDeg);
+  prefs.putBool("alerts", alertsOn);
 }
 
 void saveMqtt() {
@@ -187,12 +192,17 @@ bool calibrate(float known) {
   return true;
 }
 
-// Move the servo, then let go of it shortly after: an idle servo makes no noise on the HX711.
+// The servo's pulse, made directly on the PWM hardware: 50 per second, 0.5 to 2.4 ms for 0 to 180 degrees.
+// Going straight to the target pulse, with no library start-up pulse, keeps it from twitching first.
+const int SERVO_PUSH_MS = 600;   // how long it pushes before letting go, so it never keeps straining on the board
+const uint32_t SERVO_FULL = 1 << 14;
+void servoPulse(int us) { ledcWrite(PIN_SERVO, us ? (uint32_t)us * SERVO_FULL / 20000 : 0); }
+
+// Move the servo, then let go of it: it stops pushing, and an idle servo makes no noise on the HX711.
 void moveServo(int deg) {
   deg = constrain(deg, 0, 180);
-  valve.attach(PIN_SERVO, 500, 2400);
-  valve.write(deg);
-  servoOffAt = millis() + 800;
+  servoPulse(500 + deg * (2400 - 500) / 180);
+  servoOffAt = millis() + SERVO_PUSH_MS;
   lastGood = NAN;
   resetWindow();
   Serial.printf("Servo at %d degrees\n", deg);
@@ -200,10 +210,8 @@ void moveServo(int deg) {
 
 void setValve(bool close) {
   moveServo(close ? closeDeg : openDeg);
-  // Closed, the squeezed tube pushes the horn back, so the servo keeps holding it.
-  // Open, nothing pushes on it, so it is let go as before.
-  if (close) servoOffAt = 0;
   valveState = close ? 1 : 0;
+  prefs.putInt("valve", valveState);
   if (!close) autoClosed = false;
 }
 
@@ -214,6 +222,7 @@ void applySetting(const String &key, const String &val) {
   else if (key == "autoCloseMl") autoCloseMl = constrain(val.toFloat(), 0, 1000);
   else if (key == "openDeg") openDeg = constrain(val.toInt(), 0, 180);
   else if (key == "closeDeg") closeDeg = constrain(val.toInt(), 0, 180);
+  else if (key == "alerts") alertsOn = val.toInt() != 0;
 }
 
 // Once a second: the reading, the amount left, the rate, the alerts and the chart.
@@ -246,7 +255,7 @@ void update() {
   }
   curState = valveState == 1 ? "closed" : low ? "low" : stopped ? "stopped" : !haveRate ? "warming" : "ok";
 
-  bool alert = (low || stopped) && valveState != 1;
+  bool alert = alertsOn && (low || stopped) && valveState != 1;
   digitalWrite(PIN_GREEN, !alert);
   digitalWrite(PIN_RED, alert);
   static bool beep = false;
@@ -282,6 +291,7 @@ String stateJson() {
   num(s, "emptyG", emptyBagG, 0);
   num(s, "lowMl", lowMl, 0);
   num(s, "autoCloseMl", autoCloseMl, 0);
+  s += "\"alerts\":"; s += alertsOn ? "true" : "false"; s += ',';
   num(s, "openDeg", openDeg, 0);
   num(s, "closeDeg", closeDeg, 0);
   num(s, "rateIn", n >= MIN_WINDOW_S ? 0 : MIN_WINDOW_S - n, 0);
@@ -290,6 +300,8 @@ String stateJson() {
   s += "\"autoClosed\":"; s += autoClosed ? "true" : "false"; s += ',';
   s += "\"mqtt\":"; s += mqtt.connected() ? "true" : "false"; s += ',';
   s += "\"id\":\""; s += deviceId; s += "\",";
+  s += "\"ssid\":\""; s += WiFi.status() == WL_CONNECTED ? WiFi.SSID() : String(""); s += "\",";
+  s += "\"ip\":\""; s += WiFi.status() == WL_CONNECTED ? WiFi.localIP().toString() : String(""); s += "\",";
   num(s, "rssi", WiFi.status() == WL_CONNECTED ? WiFi.RSSI() : NAN, 0);
   num(s, "drops", wifiDrops, 0);
   num(s, "why", wifiWhy, 0);
@@ -373,18 +385,25 @@ void onMqtt(char *t, byte *payload, unsigned int len) {
   publishState();
 }
 
-void setupMqtt() {
-  if (!mqttHost[0]) { Serial.println("MQTT: no broker set, skipping"); return; }
-  int port = atoi(mqttPort);
+int mqttPortNow = 0;   // the port in use: the saved one, or the fallback after failures
+
+void mqttUsePort(int port) {
+  mqttPortNow = port;
   if (port == 8883) {
     tlsClient.setInsecure();   // encrypted, but the broker's certificate is not checked: fine for a test, not for a ward
-    tlsClient.setHandshakeTimeout(8);   // a stalled handshake must not freeze the screen and the scale
-    tlsClient.setTimeout(8000);
+    tlsClient.setHandshakeTimeout(5);   // a stalled handshake must not freeze the screen and the scale
+    tlsClient.setTimeout(5000);
     mqtt.setClient(tlsClient);
   } else {
+    plainClient.setTimeout(5000);
     mqtt.setClient(plainClient);
   }
   mqtt.setServer(mqttHost, port);
+}
+
+void setupMqtt() {
+  if (!mqttHost[0]) { Serial.println("MQTT: no broker set, skipping"); return; }
+  mqttUsePort(atoi(mqttPort));
   mqtt.setBufferSize(2048);
   mqtt.setKeepAlive(30);
   mqtt.setSocketTimeout(5);
@@ -394,19 +413,28 @@ void setupMqtt() {
 void mqttLoop() {
   if (!onRouter || !mqttHost[0] || WiFi.status() != WL_CONNECTED) return;
   if (!mqtt.connected()) {
-    static unsigned long lastTry = 0;
-    if (lastTry && millis() - lastTry < 10000) return;
+    // A blocked network makes every attempt hang for a few seconds, so wait longer after each failure (10 s up to 2 min).
+    static unsigned long lastTry = 0, gap = 0;
+    static int fails = 0;
+    if (lastTry && millis() - lastTry < gap) return;
     lastTry = millis();
     String clientId = String("ivmon-") + deviceId + "-" + String((uint32_t)ESP.getEfuseMac(), HEX);
     String status = topic("status");
-    Serial.printf("MQTT: connecting to %s:%s ... ", mqttHost, mqttPort);
+    Serial.printf("MQTT: connecting to %s:%d ... ", mqttHost, mqttPortNow);
     if (mqtt.connect(clientId.c_str(), mqttUser[0] ? mqttUser : nullptr, mqttPass[0] ? mqttPass : nullptr, status.c_str(), 1, true, "offline")) {
-      Serial.println("connected");
+      Serial.printf("connected on %d\n", mqttPortNow);
+      fails = 0;
+      gap = 10000;
       mqtt.publish(status.c_str(), "online", true);
       mqtt.subscribe(topic("cmd").c_str(), 1);
       publishState();
     } else {
-      Serial.printf("failed (state %d), retrying in 10 s\n", mqtt.state());
+      fails++;
+      gap = min(10000UL << min(fails - 1, 4), 120000UL);
+      // Two failures in a row on one port: try the other (8883 and 1883 in turn).
+      int saved = atoi(mqttPort);
+      if (fails % 2 == 0 && saved != MQTT_FALLBACK_PORT) mqttUsePort(mqttPortNow == saved ? MQTT_FALLBACK_PORT : saved);
+      Serial.printf("failed (state %d), next try on %d in %lu s\n", mqtt.state(), mqttPortNow, gap / 1000);
     }
     return;
   }
@@ -417,7 +445,24 @@ void mqttLoop() {
 
 // ---------- Wi-Fi and the local page ----------
 
-void setupNetwork(bool forgetWifi) {
+// Once on a router: the clock (for signed commands) and the iv-monitor.local name.
+void routerUp() {
+  WiFi.setSleep(false);
+  configTime(0, 0, "pool.ntp.org", "time.google.com");   // the clock lets old signed commands be refused
+  MDNS.end();
+  if (MDNS.begin("iv-monitor")) MDNS.addService("http", "tcp", 80);
+  Serial.printf("On the router \"%s\". Local page: http://iv-monitor.local or http://%s\n", WiFi.SSID().c_str(), WiFi.localIP().toString().c_str());
+}
+
+// The device's own Wi-Fi, always on next to the router: a phone that joins it opens 192.168.4.1, anywhere.
+void ownWifiOn() {
+  WiFi.mode(WIFI_AP_STA);
+  WiFi.softAP(AP_SSID, AP_PASS);
+  dns.start(53, "*", WiFi.softAPIP());   // any address the phone asks for leads to the page
+  Serial.printf("Own Wi-Fi \"%s\" on: http://%s\n", AP_SSID, WiFi.softAPIP().toString().c_str());
+}
+
+void setupNetwork(bool forgetWifi, bool openSetup) {
   WiFiManager wm;
   if (forgetWifi) { wm.resetSettings(); Serial.println("Saved Wi-Fi forgotten"); }
 
@@ -429,15 +474,18 @@ void setupNetwork(bool forgetWifi) {
   WiFiManagerParameter pPass("mpass", "MQTT password", mqttPass, sizeof(mqttPass) - 1, "type=\"password\"");
   WiFiManagerParameter pId("mid", "Device name", deviceId, sizeof(deviceId) - 1);
   WiFiManagerParameter pKey("mkey", "Control key (the dashboard needs the same)", controlKey, sizeof(controlKey) - 1);
-  wm.addParameter(&pNote);
-  wm.addParameter(&pHost);
-  wm.addParameter(&pPort);
-  wm.addParameter(&pUser);
-  wm.addParameter(&pPass);
-  wm.addParameter(&pId);
-  wm.addParameter(&pKey);
-  wm.setParamsPage(true);
-  std::vector<const char *> menu = { "wifi", "param", "info", "exit" };
+  if (USE_MQTT) {
+    wm.addParameter(&pNote);
+    wm.addParameter(&pHost);
+    wm.addParameter(&pPort);
+    wm.addParameter(&pUser);
+    wm.addParameter(&pPass);
+    wm.addParameter(&pId);
+    wm.addParameter(&pKey);
+    wm.setParamsPage(true);
+  }
+  std::vector<const char *> menu = USE_MQTT ? std::vector<const char *>{ "wifi", "param", "info", "exit" }
+                                            : std::vector<const char *>{ "wifi", "info", "exit" };
   wm.setMenu(menu);
   wm.setTitle("IV Monitor");
   wm.setConfigPortalTimeout(SETUP_TIMEOUT_S);
@@ -446,7 +494,7 @@ void setupNetwork(bool forgetWifi) {
   wm.setAPCallback([](WiFiManager *) { screenSetup(); });
   screenConnecting(wm.getWiFiIsSaved() ? wm.getWiFiSSID() : String(""));
   Serial.printf("Joining the saved Wi-Fi, or opening \"%s\" for setup (%d s)...\n", SETUP_SSID, SETUP_TIMEOUT_S);
-  onRouter = wm.autoConnect(SETUP_SSID, AP_PASS);
+  onRouter = openSetup ? wm.startConfigPortal(SETUP_SSID, AP_PASS) : wm.autoConnect(SETUP_SSID, AP_PASS);
 
   // Keep what was typed on the setup page, even when the Wi-Fi part did not work out.
   if (strcmp(pHost.getValue(), mqttHost) || strcmp(pPort.getValue(), mqttPort) || strcmp(pUser.getValue(), mqttUser) ||
@@ -460,34 +508,38 @@ void setupNetwork(bool forgetWifi) {
     saveMqtt();
   }
 
-  if (onRouter) {
-    WiFi.setSleep(false);
-    configTime(0, 0, "pool.ntp.org", "time.google.com");   // the clock lets old signed commands be refused
-    if (MDNS.begin("iv-monitor")) MDNS.addService("http", "tcp", 80);
-    Serial.printf("On the router. Local page: http://iv-monitor.local or http://%s\n", WiFi.localIP().toString().c_str());
-  } else {
-    WiFi.disconnect(true);
-    WiFi.mode(WIFI_AP);
-    WiFi.softAP(AP_SSID, AP_PASS);
-    dns.start(53, "*", WiFi.softAPIP());   // any address the phone asks for leads to the page
-    Serial.printf("No router: running its own Wi-Fi \"%s\". Local page: http://%s\n", AP_SSID, WiFi.softAPIP().toString().c_str());
-  }
+  ownWifiOn();
+  if (onRouter) routerUp();
+  else Serial.println("No router yet: it keeps looking for the saved one in the background");
   screenNetResult();
 }
 
 void setupWeb() {
   server.on("/", []() { server.send(200, "text/html; charset=utf-8", PAGE); });
-  server.on("/api/state", sendState);
-  server.on("/api/info", []() {   // local only: the control key never goes over MQTT
-    String s = String("{\"id\":\"") + deviceId + "\",\"key\":\"" + controlKey + "\",\"server\":\"" + mqttHost + "\"}";
-    server.send(200, "application/json", s);
-  });
+  server.on("/api/state", []() { pageOpened = true; sendState(); });
   server.on("/api/valve", HTTP_POST, []() {
     String to = server.arg("to");
     if (to == "open") setValve(false);
     else if (to == "close") setValve(true);
     else { server.send(400, "text/plain", "to must be open or close"); return; }
     sendState();
+  });
+  // Correct the recorded state when it is wrong (the valve was moved by hand), without moving the servo.
+  server.on("/api/valvestate", HTTP_POST, []() {
+    String is = server.arg("is");
+    if (is == "open") valveState = 0;
+    else if (is == "closed") valveState = 1;
+    else { server.send(400, "text/plain", "is must be open or closed"); return; }
+    autoClosed = false;
+    prefs.putInt("valve", valveState);
+    sendState();
+  });
+  // Set up a different Wi-Fi: restart into the setup page on the device's own network.
+  server.on("/api/wifisetup", HTTP_POST, []() {
+    server.send(200, "text/plain", "restarting into setup");
+    prefs.putBool("setup", true);
+    delay(300);
+    ESP.restart();
   });
   server.on("/api/tare", HTTP_POST, []() { tare("the web page"); sendState(); });
   server.on("/api/servo", HTTP_POST, []() {
@@ -501,13 +553,13 @@ void setupWeb() {
     sendState();
   });
   server.on("/api/set", HTTP_POST, []() {
-    for (const char *k : { "emptyG", "lowMl", "autoCloseMl", "openDeg", "closeDeg" })
+    for (const char *k : { "emptyG", "lowMl", "autoCloseMl", "openDeg", "closeDeg", "alerts" })
       if (server.hasArg(k)) applySetting(k, server.arg(k));
     save();
     sendState();
   });
   server.onNotFound([]() {
-    if (onRouter) { server.send(404, "text/plain", "Not found"); return; }
+    if (server.client().localIP() != WiFi.softAPIP()) { server.send(404, "text/plain", "Not found"); return; }
     server.sendHeader("Location", "http://192.168.4.1/", true);
     server.send(302, "text/plain", "");
   });
@@ -548,9 +600,9 @@ void commands() {
   } else if (line == "net") {
     Serial.printf("Wi-Fi \"%s\" (%s), signal %d dBm, %d drops (last reason %d), started after %s, up %lu s\n",
                   WiFi.SSID().c_str(), WiFi.BSSIDstr().c_str(), WiFi.RSSI(), wifiDrops, wifiWhy, bootWhy, millis() / 1000);
-    Serial.printf("%s, IP %s, MQTT %s (%s:%s, device %s)\n", onRouter ? "On the router" : "Own Wi-Fi",
-                  (onRouter ? WiFi.localIP() : WiFi.softAPIP()).toString().c_str(),
-                  mqtt.connected() ? "connected" : "not connected", mqttHost, mqttPort, deviceId);
+    Serial.printf("Router IP %s, own Wi-Fi %s (%d joined), MQTT %s (%s:%d, device %s)\n",
+                  WiFi.localIP().toString().c_str(), WiFi.softAPIP().toString().c_str(), WiFi.softAPgetStationNum(),
+                  mqtt.connected() ? "connected" : "not connected", mqttHost, mqttPortNow, deviceId);
   } else {
     Serial.println("Commands: t = tare (hook empty), c 500 = calibrate with 500 g on the hook, e 30 = empty bag weight in g, r = restart the rate, a 90 = servo to 90 degrees, o = open, x = close, so 180 / sc 90 = set the open / close angle, net = network status, wifi = forget the Wi-Fi");
   }
@@ -562,6 +614,8 @@ void setup() {
   pinMode(PIN_GREEN, OUTPUT);
   pinMode(PIN_RED, OUTPUT);
   pinMode(PIN_TARE, INPUT_PULLUP);
+  ledcAttach(PIN_SERVO, 50, 14);
+  servoPulse(0);   // no pulse: the servo stays where it is
 
   prefs.begin("iv", false);
   factor = prefs.getFloat("factor", 1);
@@ -569,6 +623,7 @@ void setup() {
   emptyBagG = prefs.getFloat("empty", 30);
   lowMl = prefs.getFloat("low", 50);
   autoCloseMl = prefs.getFloat("auto", 0);
+  alertsOn = prefs.getBool("alerts", false);
   openDeg = prefs.getInt("open", 160);
   closeDeg = prefs.getInt("close", 135);
   prefs.getString("mHost", mqttHost, sizeof(mqttHost));
@@ -602,10 +657,15 @@ void setup() {
     Serial.printf("Wi-Fi lost (reason %d)\n", wifiWhy);
   }, ARDUINO_EVENT_WIFI_STA_DISCONNECTED);
 
-  setupNetwork(forget);
+  bool openSetup = prefs.getBool("setup", false);   // asked for from the page
+  if (openSetup) prefs.putBool("setup", false);
+  setupNetwork(forget, openSetup);
   wifiDrops = 0;   // drops while joining at start do not count
   setupWeb();
-  setupMqtt();
+  if (USE_MQTT) setupMqtt();
+
+  // The valve as it was left; the servo is not moved at start.
+  valveState = prefs.getInt("valve", -1);
 
   // If the loop ever stops for 30 s, restart rather than sit frozen on the last screen.
   esp_task_wdt_config_t wdt = { .timeout_ms = 30000, .idle_core_mask = 0, .trigger_panic = true };
@@ -613,29 +673,38 @@ void setup() {
   esp_task_wdt_add(NULL);
 }
 
-// Rejoin the router when the Wi-Fi drops; restart if it stays away for 3 minutes.
+// Keep looking for the saved router, whether it dropped or was never found at start.
+// Searching moves the radio across channels and upsets a phone on the device's own Wi-Fi, so it searches less often while one is joined.
+// Restarts only when the router was lost for 3 minutes and nobody is on the device's own Wi-Fi.
 void wifiWatch() {
-  if (!onRouter) return;
   if (WiFi.status() == WL_CONNECTED) {
+    if (!onRouter) { onRouter = true; routerUp(); }
     if (wifiLostAt) { Serial.printf("Wi-Fi back, %s\n", WiFi.localIP().toString().c_str()); wifiLostAt = 0; }
     return;
   }
+  static bool saved = WiFiManager().getWiFiIsSaved();
+  if (!saved) return;
   if (!wifiLostAt) wifiLostAt = millis() | 1;
+  int guests = WiFi.softAPgetStationNum();
   static unsigned long lastTry = 0;
-  if (millis() - lastTry > 15000) { lastTry = millis(); Serial.println("Wi-Fi: trying again"); WiFi.reconnect(); }
-  if (millis() - wifiLostAt > 180000) { Serial.println("Wi-Fi away for 3 minutes: restarting"); delay(100); ESP.restart(); }
+  if (millis() - lastTry > (guests ? 60000UL : 15000UL)) {
+    lastTry = millis();
+    Serial.println("Wi-Fi: looking for the router");
+    if (onRouter) WiFi.reconnect(); else WiFi.begin();
+  }
+  if (onRouter && !guests && millis() - wifiLostAt > 180000) { Serial.println("Wi-Fi away for 3 minutes: restarting"); delay(100); ESP.restart(); }
 }
 
 void loop() {
   esp_task_wdt_reset();
   wifiWatch();
-  if (!onRouter) dns.processNextRequest();
+  dns.processNextRequest();
   server.handleClient();
-  mqttLoop();
+  if (USE_MQTT) mqttLoop();
   commands();
   sampleIfReady();
 
-  if (servoOffAt && millis() > servoOffAt) { valve.detach(); servoOffAt = 0; }
+  if (servoOffAt && millis() > servoOffAt) { servoPulse(0); servoOffAt = 0; }
 
   if (digitalRead(PIN_TARE) == LOW) {
     delay(30);
