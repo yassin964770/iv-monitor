@@ -107,23 +107,61 @@ def jumper(pts, color, w=2.6):
     add(f'<path d="{smooth(pts)}" fill="none" stroke="{color}" stroke-width="{w}" stroke-linecap="round"/>')
 
 R, K, WH, G, B, O, BR = "#D0342C", "#262626", "#F2F2F2", "#2E9E57", "#2F6FD1", "#F08A24", "#7A4A2A"
-# HX711 right side to the ESP32: VCC, GND, DT, SCK
-jumper([(hx + 3.18, hy + .5), (24.6, 12.6), (23.6, 10.4), (22.78, 9.5)], R)
-jumper([(hx + 3.18, hy + .86), (25.2, 13.2), (24.2, 11.2), (22.78, 10.8)], K)
-jumper([(hx + 3.18, hy + 1.22), (24.4, 13.9), (21.0, 12.2), (20.32, 10.2)], G)
-jumper([(hx + 3.18, hy + 1.58), (24.8, 14.9), (20.6, 12.6), (20.32, 9.6)], B)
-# OLED pins (GND, VCC, SCL, SDA) to the ESP32
-jumper([(ox + .82, oy + .3), (24.9, 5.5), (23.6, 6.1), (22.78, 7.1)], K)
-jumper([(ox + 1.18, oy + .3), (25.4, 5.1), (21.2, 5.1), (20.32, 6.6)], R)
-jumper([(ox + 1.54, oy + .3), (25.9, 5.3), (23.9, 6.6), (22.78, 6.4)], WH)
-jumper([(ox + 1.90, oy + .3), (26.4, 5.6), (24.0, 7.4), (22.78, 6.75)], "#8E5BD6")
-# ESP32 GND to the ground rail, joined with the servo's ground
-jumper([(22.78, 11.0), (23.5, 15.8), (26.95, 18.8)], K)
+# The ESP32 DevKit (30 pins) sits with its USB at the top and its parts towards us, so its rows run upside down from
+# the printed pinout. Left column, top to bottom: 3V3, GND, 15, 2, 4, 16, 17, 5, 18, 19, 21, RX0, TX0, 22, 23.
+# Right column: VIN, GND, 13, 12, 14, 27, 26, 25, 33, 32, 35, 34, VN, VP, EN. Each wire goes into the hole beside its pin.
+LEFT = ["3V3", "GND", "15", "2", "4", "16", "17", "5", "18", "19", "21", "RX0", "TX0", "22", "23"]
+RIGHT = ["VIN", "GND", "13", "12", "14", "27", "26", "25", "33", "32", "35", "34", "VN", "VP", "EN"]
+row = lambda name, col: ey + .35 + .33 * (col.index(name))
+L_HOLE, R_HOLE = ex - .25, ex + ew + .25
+
+# HX711 right pins (VCC, GND, DT, SCK) down under the board, round its left side and up into 3V3, GND, 18, 19
+for i, (c, pin_) in enumerate([(R, "3V3"), (K, "GND"), (G, "18"), (B, "19")]):
+    k = 3 - i                                   # the top pin goes round the outside, so no wire crosses another
+    x_r, y_b, x_l = 23.75 + .13 * k, 15.25 + .17 * k, 19.5 - .14 * k
+    jumper([(hx + 3.18, hy + .5 + .36 * i), (x_r, hy + .5 + .36 * i + .2), (x_r - .1, y_b), (20.5, y_b + .1),
+            (x_l, y_b - .4), (x_l - .05, row(pin_, LEFT) + .6), (L_HOLE, row(pin_, LEFT))], c, 2.3)
+# OLED pins (GND, VCC, SCL, SDA): ground into the ESP32's GND beside it; VCC over the top into 3V3;
+# SCL and SDA round the screen's right side, under the ESP32 and up into 22 and 21
+jumper([(ox + .82, oy + .3), (24.9, 6.05), (23.75, 6.2), (R_HOLE, row("GND", RIGHT))], K)
+jumper([(ox + 1.18, oy + .3), (25.2, 5.15), (22.6, 4.85), (19.6, 5.3), (L_HOLE - .3, row("3V3", LEFT))], R)
+for i, (c, pin_) in enumerate([(WH, "22"), ("#8E5BD6", "21")]):
+    xo, yb = 27.15 + .2 * i, 11.65 + .25 * i
+    jumper([(ox + 1.54 + .36 * i, oy + .3), (ox + 1.7 + .36 * i, 5.75 - .15 * i), (xo, 6.6), (xo + .05, 10.8), (xo - .9, yb),
+            (21.0, yb), (19.75 - .12 * i, yb - .5), (19.7 - .12 * i, row(pin_, LEFT) + .25), (L_HOLE, row(pin_, LEFT))], c)
+# ESP32 GND over the screen to the ground rail at the breadboard's right edge
+jumper([(R_HOLE + .3, row("GND", RIGHT)), (23.9, 5.35), (27.0, 5.45), (27.55, 6.3)], K)
+
+# ---------- the two lights and the buzzer, beside their pins (27, 26 and 25) ----------
+RD, GN = "#D0342C", "#2E9E57"
+def resistor_small(x, y):
+    add(f'<line x1="{X(x - .1)}" y1="{Y(y)}" x2="{X(x + .82)}" y2="{Y(y)}" stroke="#9AA0A6" stroke-width="1.6"/>')
+    add(f'<rect x="{X(x + .14):.1f}" y="{Y(y) - 2.6:.1f}" width="{.46 * S:.1f}" height="5.2" rx="2.4" fill="#E9D3A8" stroke="#B89B62" stroke-width=".7"/>')
+    for k, c in enumerate(["#C0392B", "#C0392B", "#5A3A1E", "#C9A227"]):
+        add(f'<rect x="{X(x + .2 + k * .09):.1f}" y="{Y(y) - 2.6:.1f}" width="1.3" height="5.2" fill="{c}"/>')
+def led_small(x, y, c, glow):
+    add(f'<circle cx="{X(x)}" cy="{Y(y)}" r="{.42 * S:.1f}" fill="{glow}" opacity=".45"/>')
+    add(f'<circle cx="{X(x)}" cy="{Y(y)}" r="{.26 * S:.1f}" fill="{c}" stroke="#00000040" stroke-width=".8"/>')
+    add(f'<circle cx="{X(x - .08)}" cy="{Y(y - .08)}" r="2" fill="#fff" opacity=".7"/>')
+for pin_, c, glow, ly in (("27", RD, "#FF8A80", 10.35), ("26", GN, "#7CE3A0", 11.2)):
+    y0 = row(pin_, RIGHT)
+    resistor_small(R_HOLE, y0)
+    d = .35 if pin_ == "27" else 0
+    jumper([(R_HOLE + .82, y0), (24.55 + d, y0 + .45), (24.75 + d, ly - .5), (25.62, ly)], c, 2.2)
+    led_small(25.9, ly, c, glow)
+    jumper([(26.18, ly), (26.9, ly), (27.55, ly)], K, 2.0)
+# buzzer: + to 25, - to the ground rail
+by_ = row("25", RIGHT)
+jumper([(R_HOLE, by_), (23.95, by_ + .55), (24.55, 10.9), (25.15, 12.75), (25.55, 12.9)], O, 2.2)
+add(f'<circle cx="{X(26.1)}" cy="{Y(12.9)}" r="{.58 * S:.1f}" fill="#1A1A1A" stroke="#000" stroke-width="1"/>')
+add(f'<circle cx="{X(26.1)}" cy="{Y(12.9)}" r="2.6" fill="#4A4A4A"/>')
+add(f'<text x="{X(25.82)}" y="{Y(12.72)}" class="tiny" fill="#DDDDDD">+</text>')
+jumper([(26.68, 12.9), (27.1, 12.95), (27.55, 12.9)], K, 2.0)
 # Load cell wires into the HX711's E+, E-, A-, A+
 for i, (c, dy) in enumerate([(R, .25), (K, .57), (WH, .89), (G, 1.21)]):
     jumper([(15.6 + i*.12, 12.9 + i*.18), (18.0, 13.2 + i*.2), (19.4, hy + dy), (hx + .22, hy + dy)], c, 2.2)
 # Servo lead on the breadboard: signal to GPIO 32, power to the rails fed by the cut USB cable
-jumper([(23.4, 20.4), (21.6, 16.8), (20.32, 11.0)], O)
+jumper([(23.4, 20.4), (24.25, 17.0), (24.2, 12.3), (23.75, 10.3), (R_HOLE, row("32", RIGHT))], O)
 jumper([(23.7, 20.6), (26.0, 20.0), (26.95, 19.6)], R)
 jumper([(24.0, 20.8), (26.6, 20.9), (27.55, 19.6)], BR)
 add(rect(23.15, 20.1, 1.15, .55, fill="#1A1A1A", rx=1.5))   # servo connector seated in the board
@@ -230,6 +268,8 @@ labels = [
     ("R", 236, (22.95, 10.4), "ESP32 microcontroller", "المتحكم ESP32"),
     ("R", 322, (22.9, 14.1), "HX711 amplifier", "مضخّم الإشارة HX711"),
     ("R", 408, (27.2, 16.5), "Breadboard", "لوحة التوصيل"),
+    ("R", 482, (25.9, 10.75), "Red and green lights, 220 Ω each", "ضوء أحمر وأخضر، مقاومة 220 أوم لكل واحد"),
+    ("R", 556, (26.1, 13.3), "Buzzer", "الجرس"),
     ("R", 600, (21.2, 25.0), "Servo lead and power wires, taped", "سلك السيرفو وسلك التغذية، مثبّتان بشريط"),
     ("R", 800, (19.8, 40.0), "Pinch point: the horn presses the tube", "نقطة الضغط: ذراع السيرفو يعصر الأنبوب"),
     ("R", 1010, (24.6, 44.6), "Servo motor, the valve", "محرك سيرفو يعمل كصمام"),

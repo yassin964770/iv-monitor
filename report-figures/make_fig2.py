@@ -1,4 +1,5 @@
-# Figure 2: wiring diagram of the IV bag monitor as built (no buzzer, LEDs or button: they are not on the board).
+# Figure 2: wiring diagram of the IV bag monitor. Lights: green GPIO 26, red GPIO 27, each through 220 ohm; active buzzer
+# on GPIO 25. The tare button the firmware also supports is not fitted.
 # Pins from the firmware: HX711 DT 18, SCK 19; OLED SDA 21, SCL 22 on 3V3; servo signal 32.
 # Power: one USB cable into the ESP32; a second USB cable, cut, gives the servo 5 V and GND. Grounds joined.
 W_PAGE, H_PAGE = 1480, 1000
@@ -39,7 +40,7 @@ def title(x, y, en, ar, anchor="middle", width=260):
 
 # ---------- buses ----------
 add('<line x1="580" y1="210" x2="1020" y2="210" stroke="#D0342C" stroke-width="5" stroke-linecap="round"/>')
-add('<line x1="570" y1="1035" x2="1220" y2="1035" stroke="#262626" stroke-width="5" stroke-linecap="round"/>')
+add('<line x1="330" y1="1035" x2="1220" y2="1035" stroke="#262626" stroke-width="5" stroke-linecap="round"/>')
 add('<text x="1032" y="216" class="bus" fill="#B02A23">3.3 V</text>')
 add('<text x="1232" y="1041" class="bus" fill="#262626">GND</text>')
 
@@ -68,15 +69,55 @@ title(440, 300, "HX711 amplifier", "مضخّم الإشارة HX711")
 
 # ---------- ESP32 ----------
 add('<rect x="680" y="300" width="220" height="480" rx="10" fill="#1D1E22" stroke="#0E0F11" stroke-width="1.5"/>')
-add('<rect x="735" y="565" width="90" height="180" rx="6" fill="url(#can)" stroke="#9DA3AB" stroke-width="1.2"/>')
-add('<text x="780" y="700" class="chip" text-anchor="middle">ESP32</text>')
+add('<rect x="754" y="555" width="74" height="170" rx="6" fill="url(#can)" stroke="#9DA3AB" stroke-width="1.2"/>')
+add('<text x="791" y="700" class="chip" text-anchor="middle" font-size="17">ESP32</text>')
 add('<rect x="756" y="770" width="68" height="22" rx="3" fill="#B9BEC5" stroke="#8C9198" stroke-width="1"/>')   # micro-USB
 add('<text x="790" y="764" class="pin" fill="#C8CCD2" text-anchor="middle">micro-USB</text>')
-for y, n in [(380, "3V3"), (470, "GPIO 18"), (530, "GPIO 19"), (640, "GND")]:
+for y, n in [(380, "3V3"), (470, "GPIO 18"), (530, "GPIO 19"), (600, "GPIO 26"), (660, "GPIO 27"), (720, "GPIO 25"), (770, "GND")]:
     pin(680, y, n, "L")
 for y, n in [(420, "GPIO 22"), (480, "GPIO 21"), (650, "GPIO 32")]:
     pin(900, y, n, "R")
 title(790, 226, "ESP32 microcontroller", "المتحكم ESP32")
+
+# ---------- green and red lights and the buzzer, left of the ESP32 ----------
+def resistor(x, y, label):
+    add(f'<line x1="{x - 52}" y1="{y}" x2="{x + 52}" y2="{y}" stroke="#9AA0A6" stroke-width="3"/>')
+    add(f'<rect x="{x - 34}" y="{y - 12}" width="68" height="24" rx="10" fill="#E9D3A8" stroke="#B89B62" stroke-width="1.2"/>')
+    for i, c in enumerate(["#C0392B", "#C0392B", "#5A3A1E", "#C9A227"]):
+        add(f'<rect x="{x - 22 + i * 12}" y="{y - 12}" width="6" height="24" fill="{c}"/>')
+    add(f'<text x="{x}" y="{y - 20}" class="pin" fill="#444" text-anchor="middle">{label}</text>')
+
+
+def led(x, y, color, glow):
+    """An LED from the side, its long leg (+) to the right, short leg (-) to the left."""
+    add(f'<circle cx="{x}" cy="{y - 8}" r="30" fill="{glow}" opacity=".35"/>')
+    add(f'<path d="M{x - 16} {y + 6} L{x - 16} {y - 12} A16 16 0 0 1 {x + 16} {y - 12} L{x + 16} {y + 6} Z" fill="{color}" stroke="#00000033" stroke-width="1"/>')
+    add(f'<rect x="{x - 20}" y="{y + 4}" width="40" height="6" rx="2" fill="{color}" stroke="#00000033" stroke-width="1"/>')
+    add(f'<ellipse cx="{x - 6}" cy="{y - 14}" rx="4" ry="7" fill="#fff" opacity=".55"/>')
+    add(f'<text x="{x + 30}" y="{y + 28}" class="pm" text-anchor="middle">+</text>')
+    add(f'<text x="{x - 30}" y="{y + 28}" class="pm" text-anchor="middle">−</text>')
+
+
+GL, GL2 = "#2E9E57", "#7CE3A0"
+for pin_y, xv, row, col, glow, name, en, ar in [(600, 600, 720, G, "#7CE3A0", "26", "Green light", "ضوء أخضر"),
+                                                (660, 625, 805, R, "#FF8A80", "27", "Red light", "ضوء أحمر")]:
+    wire([(680, pin_y), (xv, pin_y), (xv, row), (572, row)], col)
+    resistor(520, row, "220 Ω")
+    wire([(468, row), (430, row)], col)
+    led(400, row, col, glow)
+    wire([(370, row), (330, row)], K)
+    dot(330, row)
+    title(200, row - 24, en, ar, width=230)
+# buzzer: + to GPIO 25, - to ground
+wire([(680, 720), (655, 720), (655, 900), (464, 900)], O)
+add('<line x1="450" y1="900" x2="464" y2="900" stroke="#9AA0A6" stroke-width="3"/>')
+add('<circle cx="416" cy="900" r="34" fill="#1A1A1A" stroke="#000" stroke-width="1.2"/>')
+add('<circle cx="416" cy="900" r="6" fill="#444"/>')
+add('<text x="436" y="888" class="pin" fill="#E0E0E0" text-anchor="middle">+</text>')
+add('<line x1="368" y1="900" x2="382" y2="900" stroke="#9AA0A6" stroke-width="3"/>')
+wire([(368, 900), (330, 900)], K)
+dot(330, 900)
+title(200, 876, "Buzzer", "الجرس", width=230)
 
 # ---------- OLED ----------
 add('<rect x="1060" y="330" width="200" height="230" rx="8" fill="#22508E" stroke="#173A69" stroke-width="1.5"/>')
@@ -120,9 +161,9 @@ notes.append('<div class="ttl small" style="left:1014px;top:766px;width:200px;te
 wire([(540, 420), (580, 420), (580, 210)], R)              # HX711 VCC
 wire([(540, 470), (680, 470)], G)                          # DT
 wire([(540, 530), (680, 530)], B)                          # SCK
-wire([(540, 570), (570, 570), (570, 1035)], K)              # HX711 GND
+wire([(540, 570), (556, 570), (556, 625), (330, 625), (330, 1035)], K)   # HX711 GND, down the left; the lights and buzzer join it
 wire([(680, 380), (620, 380), (620, 210)], R)              # ESP32 3V3 out
-wire([(680, 640), (640, 640), (640, 1035)], K)              # ESP32 GND
+wire([(680, 770), (640, 770), (640, 1035)], K)              # ESP32 GND
 wire([(900, 420), (1060, 420)], WH)                        # SCL
 wire([(900, 480), (1060, 480)], PU)                        # SDA
 wire([(1060, 370), (1020, 370), (1020, 210)], R)           # OLED VCC
@@ -131,7 +172,7 @@ wire([(900, 650), (1046, 650)], O)                         # servo signal
 wire([(1046, 715), (1000, 715), (1000, 1035)], BR)          # servo ground (brown)
 for x, y in [(580, 210), (620, 210), (1020, 210)]:
     dot(x, y, R)
-for x in (570, 640, 948, 1000, 1220):
+for x in (330, 640, 948, 1000, 1220):
     dot(x, 1035)
 
 # wire names, on the wires
@@ -144,8 +185,8 @@ for y, t in [(650, "orange"), (685, "red"), (715, "brown")]:
 notes.append('<div class="foot">'
              '<p><b>The servo takes 5 V straight from the second USB cable, not from the ESP32.</b>'
              '<span>السيرفو يأخذ 5 فولت مباشرة من كيبل USB الثاني، وليس من متحكم ESP32.</span></p>'
-             '<p><b>All grounds are joined: ESP32, HX711, screen, servo and the cut cable.</b>'
-             '<span>كل الأرضيات موصولة ببعض: ESP32 وHX711 والشاشة والسيرفو والكيبل المقصوص.</span></p>'
+             '<p><b>All grounds are joined: ESP32, HX711, screen, lights, buzzer, servo and the cut cable.</b>'
+             '<span>كل الأرضيات موصولة ببعض: ESP32 وHX711 والشاشة والمصباحان والجرس والسيرفو والكيبل المقصوص.</span></p>'
              '</div>')
 
 html = f"""<!doctype html>
@@ -160,6 +201,7 @@ html = f"""<!doctype html>
   .ttl span{{display:block;font-family:'IBM Plex Sans Arabic',sans-serif;font-size:15px;color:#555;direction:rtl}}
   .ttl.small b{{font-size:14px}} .ttl.small span{{font-size:13px}}
   .pin{{font:500 13px 'IBM Plex Mono',monospace}}
+  .pm{{font:600 16px 'IBM Plex Mono',monospace;fill:#333}}
   .bus{{font:600 16px 'IBM Plex Sans'}}
   .wl{{font:500 12.5px 'IBM Plex Mono',monospace;fill:#555}}
   .chip{{font:600 20px 'IBM Plex Sans';fill:#5E646C}}
