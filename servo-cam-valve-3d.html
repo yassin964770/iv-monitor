@@ -1,0 +1,509 @@
+<title>صمام الكامة للسيرفو</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Arabic:wght@400;500;600&family=Reem+Kufi:wght@500;600&display=swap">
+<style>
+/* Layout: the valve close up on a dark stage, the parts and a live cross-section down the reading edge. */
+:root {
+  --bg: #e6ecea; --panel: #f3f6f4; --ink: #12302f; --muted: #4b6462;
+  --line: #c5d2cf; --accent: #0b6e69; --on-accent: #f3f6f4; --tint: #d9e7e3;
+  --warn: #b3261e; --ok: #1e7a46;
+  --cam: #d9822b; --bridge: #8fb8b2; --tube: #c9dad8; --fluid: #2f9cc0;
+  --stage: #1f302e; --stage-ink: #c3d5d1;
+  --display: "Reem Kufi", "IBM Plex Sans Arabic", "Segoe UI", Tahoma, sans-serif;
+  --body: "IBM Plex Sans Arabic", "Segoe UI", Tahoma, sans-serif;
+  --data: "IBM Plex Mono", Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f1918; --panel: #152220; --ink: #e3eeeb; --muted: #9db3af;
+    --line: #2b3d3a; --accent: #4fc3b8; --on-accent: #0f1918; --tint: #1e3330;
+    --warn: #f08a7e; --ok: #6fd199;
+    --cam: #e59a4c; --bridge: #5f8f88; --tube: #6f8987; --fluid: #4fb6d8; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0f1918; --panel: #152220; --ink: #e3eeeb; --muted: #9db3af;
+  --line: #2b3d3a; --accent: #4fc3b8; --on-accent: #0f1918; --tint: #1e3330;
+  --warn: #f08a7e; --ok: #6fd199;
+  --cam: #e59a4c; --bridge: #5f8f88; --tube: #6f8987; --fluid: #4fb6d8; color-scheme: dark;
+}
+html, body { height: 100%; }
+body { background: var(--bg); color: var(--ink); font-family: var(--body); font-size: 15px; line-height: 1.6; }
+::selection { background: var(--accent); color: var(--on-accent); }
+.app { display: grid; grid-template-columns: 380px minmax(0, 1fr); height: 100%; min-height: 0; }
+.ledger {
+  color: var(--ink); background: var(--panel); border-inline-end: 1px solid var(--line);
+  overflow-y: auto; padding-block: 24px;
+  padding-left: max(20px, env(safe-area-inset-left, 0px));
+  padding-right: max(20px, env(safe-area-inset-right, 0px));
+  scrollbar-color: var(--line) transparent; scrollbar-width: thin;
+}
+h1 { font-family: var(--display); font-weight: 600; font-size: 28px; line-height: 1.25; margin: 0; text-wrap: balance; }
+.lede { color: var(--muted); margin: 8px 0 0; }
+h2 { font-size: 15px; font-weight: 600; margin: 24px 0 8px; }
+.parts { margin: 0; padding: 0; list-style: none; border-top: 1px solid var(--line); }
+.parts li { border-bottom: 1px solid var(--line); padding: 9px 0; display: grid; grid-template-columns: 14px 1fr; gap: 0 10px; }
+.parts li::before { content: ""; width: 12px; height: 12px; border-radius: 3px; margin-top: 6px; background: var(--sw); }
+.parts b { font-weight: 500; }
+.parts p { grid-column: 2; margin: 2px 0 0; color: var(--muted); font-size: 14px; }
+.why { margin: 0; padding-inline-start: 18px; color: var(--muted); font-size: 14px; }
+.why li { margin-bottom: 5px; }
+.why b { color: var(--ink); font-weight: 500; }
+.sec { background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px 4px; }
+.sec svg { display: block; width: 100%; height: auto; }
+.sec .cap { font-size: 13px; color: var(--muted); margin: 2px 0 4px; }
+.note { color: var(--muted); font-size: 13.5px; margin: 18px 0 0; }
+.stage { background: var(--stage); position: relative; min-width: 0; min-height: 0; overflow: hidden; }
+canvas { display: block; width: 100%; height: 100%; touch-action: none; cursor: grab; }
+canvas:active { cursor: grabbing; }
+.lbl {
+  position: absolute; top: 0; left: 0; pointer-events: none; white-space: nowrap;
+  background: var(--panel); color: var(--ink); font-size: 13px; font-weight: 500;
+  padding: 2px 9px; border-radius: 4px; box-shadow: 0 3px 10px rgba(0, 0, 0, .3);
+}
+.lbl.key { background: var(--accent); color: var(--on-accent); }
+.hint { position: absolute; top: 14px; left: 16px; color: var(--stage-ink); font-size: 13.5px; }
+.bar {
+  color: var(--ink); position: absolute; bottom: 16px; left: 16px; right: 16px;
+  display: grid; gap: 8px; background: var(--panel); border-radius: 6px; padding: 10px 14px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, .28);
+}
+.row { display: flex; flex-wrap: wrap; gap: 8px 18px; align-items: center; justify-content: space-between; }
+.seg { display: flex; flex-wrap: wrap; gap: 2px; background: var(--tint); padding: 2px; border-radius: 5px; }
+.seg button { all: unset; cursor: pointer; padding: 5px 12px; border-radius: 4px; font-size: 14px; font-weight: 500; color: var(--muted); }
+.seg button:hover { color: var(--ink); }
+.seg button[aria-pressed="true"] { background: var(--accent); color: var(--on-accent); }
+.seg button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.level { display: flex; align-items: center; gap: 10px; flex: 1 1 240px; min-width: 0; }
+.level label { font-size: 14px; color: var(--muted); white-space: nowrap; }
+.level input { flex: 1; min-width: 70px; accent-color: var(--accent); }
+.level output { font-family: var(--data); font-size: 14px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.read { display: flex; flex-wrap: wrap; gap: 4px 18px; font-size: 13.5px; color: var(--muted); }
+.read b { color: var(--ink); font-weight: 500; font-family: var(--data); font-variant-numeric: tabular-nums; }
+#state { font-weight: 600; color: var(--muted); }
+#state.ok { color: var(--ok); }
+#state.part { color: var(--warn); }
+.fail { position: absolute; inset: 0; display: grid; place-items: center; padding: 24px; text-align: center; color: var(--stage-ink); }
+@media (max-width: 900px) {
+  html, body { height: auto; }
+  .app { grid-template-columns: minmax(0, 1fr); height: auto; }
+  .stage { order: -1; height: 72svh; min-height: 520px; }
+  .ledger { border-inline-end: 0; border-top: 1px solid var(--line); overflow: visible; }
+  .hint { display: none; }
+  .bar { bottom: 10px; left: 10px; right: 10px; padding: 8px 10px; }
+}
+</style>
+
+<div class="app" dir="rtl" lang="ar">
+  <aside class="ledger">
+    <h1>صمام الكامة للسيرفو</h1>
+    <p class="lede">قطعتين مطبوعة تتركب على السيرفو نفسه: كامة تاخذ مكان الريشتين، وجسر ثابت يحبس الأنبوب. الكامة تكبس الأنبوب على الجسر بوجه مستوي فيسكر بالكامل، وبين الفتح والسد منطقة ضبط طويلة تتحكم بيها بسرعة الجريان.</p>
+
+    <h2>الجريان حسب زاوية السيرفو</h2>
+    <div class="sec">
+      <svg id="flow" viewBox="0 0 300 150" role="img" aria-label="منحنى الجريان مقابل زاوية السيرفو بثلاث مناطق"></svg>
+      <p class="cap">بمنطقة الضبط، 85 درجة، ينزل الجريان بالتساوي: كل درجة تقريباً 1% منه. تقدير محسوب، والمنحنى الحقيقي ينقاس على الطاولة.</p>
+    </div>
+
+    <h2>القطع</h2>
+    <ul class="parts">
+      <li style="--sw: var(--cam)"><b>الكامة على الشفت</b><p>قرص سمكه 7 ملم وقطره 46 إلى 53.5 ملم، حافته بثلاث مناطق: سريعة (30 درجة) تقرّب الوجه من الأنبوب، وضبط (85 درجة) يتسطح بيها الأنبوب بنعومة، وقفل يسكّره. تنركب مباشرة على مسنن الشفت بدل الريشتين، وبرغي الريشتين يشدها من فوق.</p></li>
+      <li style="--sw: var(--bridge)"><b>الجسر الثابت</b><p>ينربط بنفس براغي أذنين السيرفو. بوجهه مجرى عرضه 8 ملم بين حافتين، والكامة تدخل بيناتهم مثل اللسان، فالأنبوب ما يگدر يطلع لفوق ولا لجوه. وضلعين تحت يقوّون الجدار.</p></li>
+      <li style="--sw: var(--bridge)"><b>المشبكين</b><p>بطرفي الجسر، يحبسون الأنبوب بعرضه الطبيعي حتى ما يزحف ويا دوران الكامة.</p></li>
+      <li style="--sw: var(--muted)"><b>فتحات طويلة للضبط</b><p>ثقوب الجسر على الأذنين طويلة: ترخي البراغي وتقرّب الجسر من الكامة أو تبعّده لحد 1 ملم، حتى يسكر تماماً، وبعدين تشدها.</p></li>
+    </ul>
+
+    <h2>مقطع عند نقطة الضغط</h2>
+    <div class="sec">
+      <svg id="sec" viewBox="0 0 300 170" role="img" aria-label="مقطع عرضي للأنبوب بين الكامة والجسر"></svg>
+      <p class="cap">حرّك زاوية السيرفو وشوف الأنبوب يتسطح على كل عرضه، والفتحة الزرقة تختفي.</p>
+    </div>
+
+    <h2>ليش يسكر بالكامل</h2>
+    <ul class="why">
+      <li><b>الوجه مستوي على كل العرض:</b> حافة الكامة توازي الجسر، فتضغط عرض الأنبوب كله بنفس اللحظة.</li>
+      <li><b>الأنبوب محبوس:</b> بين حافتين وجسر وكامة، ومشبكين بالطرفين، فما يتدحرج.</li>
+      <li><b>المسافة مضبوطة:</b> عند الإغلاق تبقى 1.0 ملم، أقل شوية من سمك جدارين الأنبوب (1.1 ملم).</li>
+      <li><b>يقفل نفسه:</b> بعد القمة تنزل الحافة بنقرة صغيرة. هناك قوة الأنبوب تمر بمركز الشفت فما ترجّع الكامة، ويبقى مسكّر حتى لو انقطعت إشارة السيرفو.</li>
+    </ul>
+    <h2>شلون يتحكم بالسرعة</h2>
+    <ul class="why">
+      <li><b>منحنى مستقيم:</b> شكل الحافة بمنطقة الضبط محسوب بحيث كل درجة تغيّر الجريان بنفس المقدار، مو كله بآخر كم درجة.</li>
+      <li><b>يبقى بمكانه:</b> بمنطقة الضبط الحافة تصعد ببطء (حوالي 0.01 ملم بالدرجة)، فقوة الأنبوب ما تگدر تدوّر الكامة، ويبقى الجريان ثابت بعد ما تنقطع الإشارة.</li>
+      <li><b>الميزان يصحّح:</b> تحدد المعدل المطلوب بالصفحة، وكل 3 إلى 5 دقائق الجهاز يقارنه بالمعدل المقاس ويدوّر الكامة كم درجة، فيعوّض ارتخاء الأنبوب وفراغ القنينة. هذا الجزء بالبرنامج، بعده مو مكتوب.</li>
+    </ul>
+    <p class="note">الأبعاد تقريبية: أنبوب قطره 4.1 ملم وجداره 0.55 ملم، وسيرفو MG945 بالقياس القياسي. تتعدل بعد ما تقيس. الزوايا هنا نسبية، وزاويتا الفتح والسد تنضبطن من الصفحة مثل هسه.</p>
+  </aside>
+  <main class="stage" id="stage">
+    <canvas id="c" aria-label="نموذج ثلاثي الأبعاد لكامة على سيرفو تكبس أنبوب المغذي على جسر ثابت"></canvas>
+    <div id="labels"></div>
+    <div class="hint">اسحب للتدوير، وكبّر بعجلة الماوس</div>
+    <div class="bar">
+      <div class="row">
+        <div class="seg" role="group" aria-label="أوامر">
+          <button type="button" data-go="0">افتح (0)</button>
+          <button type="button" data-go="75">نص الجريان (75)</button>
+          <button type="button" data-go="140">سكّر (140)</button>
+          <button type="button" id="explode" aria-pressed="false">فكّك القطع</button>
+          <button type="button" id="names" aria-pressed="true">الأسماء</button>
+        </div>
+        <div class="level">
+          <label for="ang">زاوية السيرفو</label>
+          <input id="ang" type="range" min="0" max="150" step="1" value="0">
+          <output id="angOut" for="ang" dir="ltr">0°</output>
+        </div>
+      </div>
+      <div class="read">
+        <span>المسافة <b id="rGap" dir="ltr"></b></span>
+        <span>الجريان تقريباً <b id="rOpen" dir="ltr"></b></span>
+        <span>كل درجة تغيّره <b id="rStep" dir="ltr"></b></span>
+        <span id="state" role="status"></span>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script>
+(function () {
+  const $ = id => document.getElementById(id);
+  const stage = $('stage');
+  const fail = msg => { const d = document.createElement('div'); d.className = 'fail'; d.textContent = msg; stage.append(d); };
+
+  /* ---------- the geometry, in mm ---------- */
+  const OD = 4.1, WALL = .55, WF = Math.PI * OD / 2;          // tube, and its width once flat
+  const R0 = 23, D = 27.6;                                     // cam radius when open, and the pressing face's distance from the shaft
+  const CX = 9.75, CAM_Y = 12.3, CAM_T = 7, TUBE_Y = CAM_Y + CAM_T / 2;
+  const sstep = t => t * t * (3 - 2 * t);
+  /* The tube's cross-section where the cam rim stands `gap` mm from the face. */
+  const squeeze = gap => {
+    const h = Math.min(OD, Math.max(gap, .85));
+    const f = Math.min(1.05, Math.max(0, (OD - h) / (OD - 2 * WALL)));
+    const w = OD + f * (WF - OD);
+    return { h, w, cz: D - h / 2, hin: Math.max(0, h - 2 * WALL), win: Math.max(0, w - 2 * WALL) };
+  };
+  /* Flow, as a share of the fully open flow: laminar flow through the squeezed passage (an ellipse, k = a³b³/(a²+b²))
+     in series with the rest of the set. PINCH is the pinched length over the set's equivalent length; an estimate. */
+  const PINCH = .002, kOf = (a, b) => (a > 0 && b > 0 ? Math.pow(a * b, 3) / (a * a + b * b) : 0);
+  const K_OPEN = kOf((OD - 2 * WALL) / 2, (OD - 2 * WALL) / 2);
+  const rawFlow = gap => { const s = squeeze(gap), k = kOf(s.win / 2, s.hin / 2); return k ? 1 / (1 + PINCH * K_OPEN / k) : 0; };
+  const FULL = rawFlow(4.6), flowAt = gap => rawFlow(gap) / FULL;
+  const gapFor = q => { if (q <= 0) return 2 * WALL; let lo = 2 * WALL, hi = 4.6; for (let i = 0; i < 40; i++) { const m = (lo + hi) / 2; flowAt(m) < q ? lo = m : hi = m; } return (lo + hi) / 2; };
+  /* Gap at the contact for a cam turn of u degrees, in zones:
+     open dwell; a fast 30-degree run to 95% flow; an 85-degree regulating zone shaped so flow falls evenly with angle;
+     a seal margin; a peak; a small dip that locks it shut; then the return, which is never used. */
+  const ZONE = { fast: [15, 45], reg: [45, 130], shut: [130, 160] };
+  const G_REG = gapFor(.95);
+  const gapAtU = u => {
+    if (u < 15) return 4.6;
+    if (u < 45) return 4.6 + (G_REG - 4.6) * sstep((u - 15) / 30);
+    if (u < 130) return gapFor(.95 * (1 - (u - 45) / 85));
+    if (u < 135) return 1.1 - .1 * (u - 130) / 5;
+    if (u < 139) return 1 - .15 * (u - 135) / 4;
+    if (u < 143) return .85 + .15 * (u - 139) / 4;
+    if (u < 160) return 1;
+    if (u < 230) return 1 + 3.6 * sstep((u - 160) / 70);
+    return 4.6;
+  };
+  const GAPS = Array.from({ length: 721 }, (_, i) => gapAtU(i / 2));
+  const R = u => {
+    u = ((u % 360) + 360) % 360;
+    const i = Math.floor(u * 2), t = u * 2 - i;
+    return D - (GAPS[i] + (GAPS[Math.min(720, i + 1)] - GAPS[i]) * t);
+  };
+  const A_MAX = 150, A_HALF = Math.round(45 + 85 * (1 - .5 / .95) - 10), A_SHUT = 140;
+
+  /* ---------- live cross-section (works without WebGL too) ---------- */
+  const NS = 'http://www.w3.org/2000/svg', svg = $('sec');
+  const el = (tag, a) => { const e = document.createElementNS(NS, tag); for (const k in a) e.setAttribute(k, a[k]); svg.append(e); return e; };
+  const S = 14, MX = 150, FACE = 28;
+  el('rect', { x: MX - 112, y: 6, width: 224, height: FACE - 6, fill: 'var(--bridge)' });
+  el('rect', { x: MX - 112, y: FACE, width: 56, height: 56, fill: 'var(--bridge)' });
+  el('rect', { x: MX + 56, y: FACE, width: 56, height: 56, fill: 'var(--bridge)' });
+  const camR = el('rect', { x: MX - 49, width: 98, fill: 'var(--cam)' });
+  const tubeE = el('ellipse', { cx: MX, fill: 'var(--tube)', stroke: 'var(--muted)', 'stroke-width': 1 });
+  const lumE = el('ellipse', { cx: MX, fill: 'var(--fluid)' });
+  const txt = (s, x, y, anchor) => { const t = el('text', { x, y, 'text-anchor': anchor, 'font-size': 12, fill: 'var(--ink)', 'font-family': 'IBM Plex Sans Arabic, sans-serif' }); t.textContent = s; return t; };
+  txt('الجسر', MX, 22, 'middle');
+  txt('حافة', MX - 84, FACE + 72, 'middle');
+  txt('حافة', MX + 84, FACE + 72, 'middle');
+  const camT = txt('الكامة', MX, 0, 'middle');
+  const drawSection = gap => {
+    const s = squeeze(gap);
+    const rimY = FACE + gap * S;
+    camR.setAttribute('y', rimY); camR.setAttribute('height', Math.max(0, 168 - rimY));
+    camT.setAttribute('y', Math.min(164, rimY + 20));
+    tubeE.setAttribute('cy', FACE + s.h / 2 * S); tubeE.setAttribute('rx', s.w / 2 * S); tubeE.setAttribute('ry', s.h / 2 * S);
+    lumE.setAttribute('cy', FACE + s.h / 2 * S); lumE.setAttribute('rx', s.win / 2 * S); lumE.setAttribute('ry', s.hin / 2 * S);
+    lumE.style.display = s.hin > .01 ? '' : 'none';
+    return s;
+  };
+
+  /* Flow against servo angle, with the three zones. */
+  const fsvg = $('flow');
+  const fel = (tag, a, txt) => { const e = document.createElementNS(NS, tag); for (const k in a) e.setAttribute(k, a[k]); if (txt) e.textContent = txt; fsvg.append(e); return e; };
+  const FX = a => 30 + a / A_MAX * 252, FY = q => 128 - q * 108;
+  [['fast', 'سريعة', 'var(--tint)'], ['reg', 'منطقة الضبط', 'var(--bg)'], ['shut', 'قفل', 'var(--tint)']].forEach(([z, name, fill]) => {
+    const a0 = Math.max(0, ZONE[z][0] - 10), a1 = Math.min(A_MAX, ZONE[z][1] - 10);
+    fel('rect', { x: FX(a0), y: 14, width: FX(a1) - FX(a0), height: 114, fill });
+    fel('text', { x: (FX(a0) + FX(a1)) / 2, y: 10, 'text-anchor': 'middle', 'font-size': 11, fill: 'var(--muted)' }, name);
+  });
+  fel('line', { x1: 30, y1: 128, x2: 282, y2: 128, stroke: 'var(--line)' });
+  fel('line', { x1: 30, y1: 20, x2: 282, y2: 20, stroke: 'var(--line)', 'stroke-dasharray': '3 3' });
+  let pts = '';
+  for (let a = 0; a <= A_MAX; a++) pts += (a ? ' L' : 'M') + FX(a).toFixed(1) + ' ' + FY(flowAt(D - R(10 + a))).toFixed(1);
+  fel('path', { d: pts, fill: 'none', stroke: 'var(--accent)', 'stroke-width': 2.2 });
+  [['100%', 20], ['0%', 128]].forEach(([t, y]) => fel('text', { x: 26, y: y + 4, 'text-anchor': 'end', 'font-size': 10.5, fill: 'var(--muted)', 'font-family': 'IBM Plex Mono, monospace' }, t));
+  [0, 50, 100, 150].forEach(a => fel('text', { x: FX(a), y: 143, 'text-anchor': 'middle', 'font-size': 10.5, fill: 'var(--muted)', 'font-family': 'IBM Plex Mono, monospace' }, a + '°'));
+  const dot = fel('circle', { r: 4.5, fill: 'var(--cam)', stroke: 'var(--panel)', 'stroke-width': 1.5 });
+
+  let ang = 0, angT = 0, ex = 0, exT = 0;
+  const readouts = () => {
+    const u = 10 + ang, gap = D - R(u), s = drawSection(gap), q = flowAt(gap);
+    dot.setAttribute('cx', FX(ang)); dot.setAttribute('cy', FY(q));
+    const per = Math.abs(flowAt(D - R(u + .5)) - flowAt(D - R(u - .5))) * 100;
+    $('rGap').textContent = gap.toFixed(2) + ' mm';
+    $('rOpen').textContent = Math.round(q * 100) + '%';
+    $('rStep').textContent = per < .05 ? '0' : per.toFixed(1) + '%';
+    const st = $('state');
+    if (q >= .99) { st.className = ''; st.textContent = 'مفتوح بالكامل'; }
+    else if (u < ZONE.reg[0]) { st.className = 'part'; st.textContent = 'المنطقة السريعة'; }
+    else if (q > .001) { st.className = 'part'; st.textContent = 'منطقة الضبط'; }
+    else { st.className = 'ok'; st.textContent = u >= 143 && u < 160 ? 'مسكّر بالكامل ومقفول بالنقرة' : 'مسكّر بالكامل'; }
+    return { u, s };
+  };
+  const setT = v => { angT = v; $('ang').value = v; $('angOut').textContent = v + '°'; };
+  $('ang').addEventListener('input', e => { angT = ang = +e.target.value; $('angOut').textContent = angT + '°'; });
+  document.querySelectorAll('[data-go]').forEach(b => b.addEventListener('click', () => setT(+b.dataset.go)));
+  readouts();
+
+  if (!window.THREE || !THREE.OrbitControls) return fail('ما انفتح النموذج لأن مكتبة الرسم ما تحملت. حدّث الصفحة.');
+  const T = THREE;
+  let renderer;
+  try { renderer = new T.WebGLRenderer({ canvas: $('c'), antialias: true, alpha: true, preserveDrawingBuffer: true }); }
+  catch (e) { return fail('المتصفح ما يدعم WebGL، فما يگدر يعرض النموذج.'); }
+  const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+  renderer.outputEncoding = T.sRGBEncoding;
+  renderer.toneMapping = T.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = .72;
+  renderer.sortObjects = true;
+
+  const scene = new T.Scene();
+  const camera = new T.PerspectiveCamera(28, 1, .2, 300);
+  const controls = new T.OrbitControls(camera, renderer.domElement);
+  controls.enableDamping = true; controls.dampingFactor = .08; controls.enablePan = false;
+  controls.minDistance = 4; controls.maxDistance = 60;
+  const TARGET = new T.Vector3(1.0, .9, 1.5);
+  controls.target.copy(TARGET);
+
+  const pm = new T.PMREMGenerator(renderer);
+  const es = new T.Scene(); es.background = new T.Color(0x3c4644);
+  [[0, 40, 0, 80, 4, 80, 2.2], [50, 8, 30, 4, 40, 50, 1.8], [-50, 0, 30, 4, 50, 30, 1]].forEach(a => {
+    const l = new T.Mesh(new T.BoxGeometry(a[3], a[4], a[5]), new T.MeshBasicMaterial({ color: new T.Color().setScalar(a[6]) }));
+    l.position.set(a[0], a[1], a[2]); es.add(l);
+  });
+  scene.environment = pm.fromScene(es, .03).texture;
+  const key = new T.DirectionalLight(0xffffff, .55); key.position.set(10, 30, 20); scene.add(key);
+
+  const mat = (c, r = .55, m = 0, o = {}) => new T.MeshStandardMaterial(Object.assign({ color: new T.Color(c).convertSRGBToLinear(), roughness: r, metalness: m }, o));
+  const add = (g, geo, m, x = 0, y = 0, z = 0) => { const k = new T.Mesh(geo, m); k.position.set(x, y, z); g.add(k); return k; };
+  const box = (g, w, h, d, m, x, y, z) => add(g, new T.BoxGeometry(w, h, d), m, x, y, z);
+  const cyl = (r, h, s = 32) => new T.CylinderGeometry(r, r, h, s);
+  const steel = mat(0xb9c1bf, .3, .95);
+
+  const root = new T.Group(); root.scale.setScalar(.1); scene.add(root);   // mm in, cm on stage
+
+  /* Servo MG945, shaft up, at x = CX. */
+  const servo = new T.Group(); root.add(servo);
+  const dark = mat(0x1e2528, .45, .1);
+  box(servo, 40.3, 36.6, 20, dark, 0, -8.3, 0);                          // TowerPro standard case: top 10 above the ears
+  box(servo, 53.6, 2.5, 20, dark, 0, -1.25, 0);
+  add(servo, cyl(5.5, CAM_Y - 10), dark, CX, (CAM_Y + 10) / 2, 0);                            // output gear collar; the cam sits on it
+  add(servo, new T.TubeGeometry(new T.CatmullRomCurve3([[20, -22, 0], [30, -23, 0], [42, -25, 8]].map(p => new T.Vector3(...p))), 20, 1.2, 8, false), mat(0xc97d2c, .55));
+
+  /* Ardunic's servo bracket (ARD-080016, 2 mm aluminium, sizes approximate): its long plate is screwed to the board,
+     so the shaft points away from the board; the servo lies in it and its ears are screwed to the two end tabs,
+     with the bridge on the ears' other face. */
+  const holder = new T.Group(); root.add(holder);
+  const alu = mat(0x2b3133, .5, .4);
+  box(holder, 54, 2, 25, alu, 0, -27.6, -.5);                              // plate on the board, behind the servo's bottom
+  box(holder, 54, 24.1, 2, alu, 0, -14.55, -11);                           // base, along the servo's side
+  [-24.1, 24.1].forEach(x => box(holder, 8, 2, 21, alu, x, -3.5, -.5));    // end tabs under the ears
+
+  /* Cam: the servo's 25-tooth spline as a hole underneath, solid on top. Shape angle a = -90 - u puts u at the face (+z) when turned by u. */
+  const SPL_D = 4.2;
+  const camShape = pocket => {
+    const s = new T.Shape();
+    for (let k = 0; k <= 720; k++) {
+      const u = k * .5, a = (-90 - u) * Math.PI / 180, r = R(u);
+      k ? s.lineTo(r * Math.cos(a), r * Math.sin(a)) : s.moveTo(r * Math.cos(a), r * Math.sin(a));
+    }
+    if (pocket) {
+      const h = new T.Path();
+      for (let i = 0; i <= 50; i++) { const r = i % 2 ? 2.8 : 3.05, a = Math.PI * i / 25; i ? h.lineTo(r * Math.cos(a), r * Math.sin(a)) : h.moveTo(r * Math.cos(a), r * Math.sin(a)); }
+      s.holes.push(h);
+    }
+    return s;
+  };
+  const camM = mat(0xd9822b, .5);
+  const camG = new T.Group(); camG.position.set(CX, CAM_Y, 0); root.add(camG);
+  const camParts = new T.Group(); camG.add(camParts);
+  const lower = add(camParts, new T.ExtrudeGeometry(camShape(true), { depth: SPL_D, bevelEnabled: false }), camM);
+  lower.rotation.x = -Math.PI / 2;
+  const upper = add(camParts, new T.ExtrudeGeometry(camShape(false), { depth: CAM_T - SPL_D, bevelEnabled: false }), camM, 0, SPL_D, 0);
+  upper.rotation.x = -Math.PI / 2;
+  add(camParts, cyl(2.75, 2), steel, 0, CAM_T + 1, 0);                    // the horn's screw head
+  /* Marks on the cam's top where each zone starts. */
+  const radial = (u, r) => { const a = (-90 - u) * Math.PI / 180; return [r * Math.cos(a), -r * Math.sin(a), a]; };
+  [15, 45, 130, 143].forEach(u => {
+    const [x, z, a] = radial(u, R(u) - 2.4);
+    const t = box(camParts, 4, .3, .6, mat(0x3a2a1c, .7), x, CAM_T + .15, z);
+    t.rotation.y = a;
+  });
+
+  /* The servo's output spline, which the cam goes straight onto (it shows when the parts are pulled apart). */
+  const horn = add(camG, cyl(2.95, 4, 25), steel, 0, 2, 0);
+
+  /* Fixed bridge, see-through so the squeeze shows. The same sizes as the drawing sheet (print-parts/). */
+  const bridge = new T.Group(); root.add(bridge);
+  const brM = mat(0x8fb8b2, .5, 0, { transparent: true, opacity: .42, depthWrite: false });
+  const WT = 4, LIP = 3, CH0 = TUBE_Y - 4, CH1 = TUBE_Y + 4, TOP = CH1 + LIP;
+  const XL = -26.8, XR = 38, WIN = 20.65, ZB = -10, ZW = 10.3;
+  box(bridge, -WIN - XL, 3, ZW - ZB, brM, (XL - WIN) / 2, 1.5, (ZB + ZW) / 2);   // pad on the left ear
+  box(bridge, XR - WIN, 3, ZW - ZB, brM, (XR + WIN) / 2, 1.5, (ZB + ZW) / 2);                      // pad on the right ear
+  box(bridge, XR - XL, 3, D + WT - ZW, brM, (XL + XR) / 2, 1.5, (ZW + D + WT) / 2);                  // front bar
+  box(bridge, 52, TOP, WT, brM, 10, TOP / 2, D + WT / 2);                  // wall; its face presses the tube
+  box(bridge, 52, LIP, 4, brM, 10, CH0 - LIP / 2, D - 2);                  // lower lip
+  box(bridge, 52, LIP, 4, brM, 10, CH1 + LIP / 2, D - 2);                  // upper lip
+  [-14.5, 34.5].forEach(x => box(bridge, 3, CH0 - LIP - 3, D - ZW, brM, x, (CH0 - LIP + 3) / 2, (ZW + D) / 2));   // ribs, up to the lower lip
+  [[-24.1, 5.3], [-24.1, -5.3], [24.1, 5.3], [24.1, -5.3]].forEach(p => {
+    box(bridge, 3.8, .1, 5.8, mat(0x1e2528, .8), p[0], 3.05, p[1]);        // slot, 1 mm either way
+    add(bridge, cyl(2.6, 1.4, 16), steel, p[0], 3.7, p[1]);
+  });
+  const clipM = mat(0x6f9c96, .5);
+  [CX - 22, CX + 22].forEach(x => [-1, 1].forEach(s => box(bridge, 3, 1.5, 4.9, clipM, x, TUBE_Y + s * 2.85, D - 2.45)));
+
+  /* Tube along x, flattened where the cam rim reaches it; the blue core is the fluid passage. */
+  const X0 = -38, X1 = 58, NX = 241, NR = 28;
+  const xs = Array.from({ length: NX }, (_, i) => X0 + (X1 - X0) * i / (NX - 1));
+  const ringGeo = () => {
+    const g = new T.BufferGeometry();
+    g.setAttribute('position', new T.BufferAttribute(new Float32Array(NX * NR * 3), 3));
+    const idx = [];
+    for (let i = 0; i < NX - 1; i++) for (let j = 0; j < NR; j++) {
+      const a = i * NR + j, b = i * NR + (j + 1) % NR, c = a + NR, d = b + NR;
+      idx.push(a, c, b, b, c, d);
+    }
+    g.setIndex(idx);
+    return g;
+  };
+  const tubeGeo = ringGeo(), fluidGeo = ringGeo();
+  add(root, tubeGeo, mat(0xdfeaea, .2, 0, { transparent: true, opacity: .55, side: T.DoubleSide, depthWrite: false }));
+  add(root, fluidGeo, mat(0x2f9cc0, .3));
+  let rNow = R0;
+  const sectionAt = x => {
+    const dx = x - CX;
+    return squeeze(Math.abs(dx) < rNow ? D - Math.sqrt(rNow * rNow - dx * dx) : 99);
+  };
+  const buildTube = () => {
+    const P = tubeGeo.attributes.position.array, Q = fluidGeo.attributes.position.array;
+    for (let i = 0; i < NX; i++) {
+      const s = sectionAt(xs[i]);
+      for (let j = 0; j < NR; j++) {
+        const t = j / NR * Math.PI * 2, c = Math.cos(t), n = Math.sin(t), k = (i * NR + j) * 3;
+        P[k] = xs[i]; P[k + 1] = TUBE_Y + s.w / 2 * c; P[k + 2] = s.cz + s.h / 2 * n;
+        Q[k] = xs[i]; Q[k + 1] = TUBE_Y + s.win / 2 * c * .98; Q[k + 2] = s.cz + s.hin / 2 * n * .98;
+      }
+    }
+    tubeGeo.attributes.position.needsUpdate = true; fluidGeo.attributes.position.needsUpdate = true;
+    tubeGeo.computeVertexNormals(); fluidGeo.computeVertexNormals();
+    tubeGeo.computeBoundingSphere(); fluidGeo.computeBoundingSphere();
+  };
+
+  /* Drops moving along the passage: they run at the speed the opening allows and stop when it shuts. */
+  const drops = Array.from({ length: 9 }, (_, i) => ({ x: X0 + 6 + i * 13, m: add(root, new T.SphereGeometry(.75, 12, 10), mat(0x8fe0ff, .2, 0, { emissive: 0x1b6f8c })) }));
+
+  const LABELS = [
+    ['الكامة على الشفت', camParts, [0, CAM_T + 1, 0], 1],
+    ['سريعة', camParts, (p => [p[0], CAM_T + .5, p[1]])(radial(30, 13)), 0],
+    ['ضبط', camParts, (p => [p[0], CAM_T + .5, p[1]])(radial(88, 13)), 0],
+    ['قفل', camParts, (p => [p[0], CAM_T + .5, p[1]])(radial(150, 13)), 0],
+    ['الجسر الثابت', bridge, [-12, 3, 27.6], 1],
+    ['مجرى يحبس الأنبوب', bridge, [-10, 23.5, 20], 0],
+    ['مشبك', bridge, [CX + 22, TUBE_Y + 3.7, D - 2.45], 0],
+    ['فتحة طويلة للضبط', bridge, [-24.1, 3.2, -5.3], 0],
+    ['مسنن الشفت', horn, [0, 2, 0], 0],
+    ['السيرفو MG945', servo, [-8, -14, 10], 0],
+    ['حامل السيرفو', holder, [-20, -27.6, 12], 0],
+    ['الأنبوب', root, [-32, TUBE_Y + 2.5, D - OD / 2], 0]
+  ];
+  const lblBox = $('labels');
+  const lbls = LABELS.map(l => { const d = document.createElement('div'); d.className = 'lbl' + (l[3] ? ' key' : ''); d.textContent = l[0]; lblBox.append(d); return d; });
+  let showNames = true;
+  $('names').addEventListener('click', e => { showNames = !showNames; e.currentTarget.setAttribute('aria-pressed', String(showNames)); lblBox.hidden = !showNames; });
+  $('explode').addEventListener('click', e => { exT = exT ? 0 : 1; e.currentTarget.setAttribute('aria-pressed', String(!!exT)); if (reduced) ex = exT; });
+
+  let openness = 1;
+  const apply = () => {
+    const r = readouts();
+    camG.rotation.y = r.u * Math.PI / 180;
+    rNow = R(r.u);
+    buildTube();
+    openness = sectionAt(CX).hin / (OD - 2 * WALL);
+    camParts.position.y = ex * 24;
+    bridge.position.z = ex * 30;
+  };
+
+  const resize = () => {
+    const W = stage.clientWidth, H = stage.clientHeight;
+    if (!W || !H) return;
+    renderer.setSize(W, H, false);
+    camera.aspect = W / H;
+    const tan = Math.tan(T.MathUtils.degToRad(camera.fov / 2));
+    const barH = stage.querySelector('.bar').offsetHeight + 24, room = Math.max(.45, (H - barH) / H);
+    const fit = Math.max(6 / (2 * tan), 8 / (2 * tan * camera.aspect)) / room;
+    camera.setViewOffset(W, H, 0, barH / 2, W, H);
+    if (!resize.done) { camera.position.copy(TARGET).addScaledVector(new T.Vector3(-.3, 1.45, .95).normalize(), fit); resize.done = true; }
+    camera.updateProjectionMatrix();
+  };
+  new ResizeObserver(resize).observe(stage);
+  resize();
+
+  const v = new T.Vector3(), clock = new T.Clock(); let lastA = -1, lastE = -1;
+  const frame = () => {
+    if (!resize.done) return requestAnimationFrame(frame);
+    const dt = Math.min(clock.getDelta(), .1);
+    if (reduced) { ang = angT; ex = exT; }
+    ang += (angT - ang) * (1 - Math.exp(-dt * 4)); if (Math.abs(angT - ang) < .15) ang = angT;
+    ex += (exT - ex) * (1 - Math.exp(-dt * 5)); if (Math.abs(exT - ex) < .002) ex = exT;
+    if (Math.abs(ang - lastA) > .04 || Math.abs(ex - lastE) > .001) { apply(); lastA = ang; lastE = ex; }
+    const speed = reduced ? 0 : 14 * openness;
+    drops.forEach(d => {
+      d.x += speed * dt;
+      if (d.x > X1 - 2) d.x -= (X1 - X0 - 8);
+      const s = sectionAt(d.x);
+      d.m.position.set(d.x, TUBE_Y, s.cz);
+      d.m.visible = s.hin > .9;
+    });
+    controls.update();
+    renderer.render(scene, camera);
+    if (showNames) {
+      const W = stage.clientWidth, H = stage.clientHeight;
+      LABELS.forEach((l, i) => {
+        l[1].localToWorld(v.set(l[2][0], l[2][1], l[2][2]));
+        v.project(camera);
+        const e = lbls[i], hornHidden = l[1] === horn && ex < .5;
+        const vis = !hornHidden && v.z < 1 && Math.abs(v.x) < 1.1 && Math.abs(v.y) < 1.1;
+        e.style.visibility = vis ? 'visible' : 'hidden';
+        e.style.transform = 'translate(' + ((v.x + 1) / 2 * W) + 'px,' + ((1 - v.y) / 2 * H) + 'px) translate(-50%,-110%)';
+      });
+    }
+    requestAnimationFrame(frame);
+  };
+  apply();
+  frame();
+})();
+</script>

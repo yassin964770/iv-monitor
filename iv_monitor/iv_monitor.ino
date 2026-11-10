@@ -1,13 +1,14 @@
 // IV bag monitor: weight, amount left and flow rate, a valve servo, a local page, and MQTT for the online dashboard.
-// Libraries: "HX711 Arduino Library" (Bogdan Necula), "WiFiManager" (tzapu), "PubSubClient", from the Library Manager.
+// Libraries: "HX711 Arduino Library" (Bogdan Necula), "WiFiManager" (tzapu), "PubSubClient", "Adafruit SSD1306",
+// from the Library Manager. Board: ESP32 Dev Module (esp32 core 3.x).
 //
 // Network:
-//   First boot, or when the saved Wi-Fi cannot be found: the ESP32 opens "IV-Monitor-Setup" (password below).
-//   Join it from a phone; the setup page lists the networks around and asks only for the router password.
+//   The device's own Wi-Fi "IV-Monitor" (password below) is always on, with the local page at http://192.168.4.1.
+//   First boot, or when the saved Wi-Fi cannot be found: the setup page opens on that network for 3 minutes;
+//   it lists the networks around and asks only for the router password. Skipped: it keeps looking in the background.
 //   The MQTT server is built in (below) and can be changed under "Setup" on that page, for advanced use.
-//   Connected: the local page is at http://iv-monitor.local or at the IP printed on the Serial Monitor, and the device talks to MQTT.
-//   Setup skipped or timed out: it runs on its own Wi-Fi "IV-Monitor" with the local page at http://192.168.4.1, as before.
-//   To forget the saved Wi-Fi: send "wifi" on the Serial Monitor, or hold the tare button while powering on.
+//   On the router: the local page is also at http://iv-monitor.local or at the IP on the screen, and the device talks to MQTT.
+//   To set up another Wi-Fi: the button on the local page, "wifi" on the Serial Monitor, or the tare button held at power-on.
 // Serial Monitor: 115200 baud, line ending "Newline".
 
 #include <WiFi.h>

@@ -197,10 +197,10 @@ void screenAddress() {
   String ip;
   if (router) {
     ip = WiFi.localIP().toString();
-    centred("in a browser", 17, 1);
+    centred("in browser", 17, 1);   // 10 characters: the most that fit across
   } else {
     ip = WiFi.softAPIP().toString();
-    centred(String("Join ") + AP_SSID, 17, 1);
+    centred(AP_SSID, 17, 1);           // the network to join; "Join IV-Monitor" would not fit
   }
   int y = 30;
   while (ip.length()) {

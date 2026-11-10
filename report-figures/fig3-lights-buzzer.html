@@ -1,0 +1,99 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@500;600&family=IBM+Plex+Sans+Arabic:wght@400;500&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+  html,body{margin:0;background:#fff}
+  .page{position:relative;width:1480px;height:860px;background:#fff;font-family:'IBM Plex Sans',sans-serif;color:#1F1F1F}
+  svg{position:absolute;inset:0}
+  .ttl{position:absolute;line-height:1.25}
+  .ttl b{display:block;font-weight:600;font-size:17px}
+  .ttl span{display:block;font-family:'IBM Plex Sans Arabic',sans-serif;font-size:15px;color:#555;direction:rtl}
+  .ttl.small b{font-size:14px} .ttl.small span{font-size:13px}
+  .pin{font:500 13px 'IBM Plex Mono',monospace}
+  .pm{font:600 16px 'IBM Plex Mono',monospace;fill:#333}
+  .leg{font:600 12px 'IBM Plex Mono',monospace;fill:#444}
+  .bus{font:600 16px 'IBM Plex Sans'}
+  .wl{font:500 12.5px 'IBM Plex Mono',monospace;fill:#555}
+  .chip{font:600 20px 'IBM Plex Sans';fill:#5E646C}
+  .foot{position:absolute;left:70px;top:760px;width:1340px;display:flex;gap:50px}
+  .foot p{margin:0;flex:1;line-height:1.3}
+  .foot b{display:block;font-weight:500;font-size:15px}
+  .foot span{display:block;font-family:'IBM Plex Sans Arabic',sans-serif;font-size:14px;color:#555;direction:rtl;text-align:left}
+</style></head><body>
+<div class="page">
+<svg width="1480" height="860" viewBox="0 0 1480 860">
+<defs>
+<linearGradient id="can" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#D3D7DC"/><stop offset="1" stop-color="#B3B9C0"/></linearGradient>
+</defs>
+<line x1="300" y1="700" x2="1330" y2="700" stroke="#262626" stroke-width="5" stroke-linecap="round"/>
+<text x="1342" y="706" class="bus" fill="#262626">GND</text>
+<rect x="380" y="160" width="220" height="480" rx="10" fill="#1D1E22" stroke="#0E0F11" stroke-width="1.5"/>
+<rect x="435" y="400" width="90" height="180" rx="6" fill="url(#can)" stroke="#9DA3AB" stroke-width="1.2"/>
+<text x="480" y="535" class="chip" text-anchor="middle">ESP32</text>
+<rect x="456" y="638" width="68" height="22" rx="3" fill="#B9BEC5" stroke="#8C9198" stroke-width="1"/>
+<text x="490" y="630" class="pin" fill="#C8CCD2" text-anchor="middle">micro-USB</text>
+<rect x="375" y="585" width="10" height="10" rx="1.5" fill="#D4AF37" stroke="#8A6D1A" stroke-width="1"/>
+<text x="392" y="595" class="pin" fill="#fff" text-anchor="start">GND</text>
+<rect x="595" y="255" width="10" height="10" rx="1.5" fill="#D4AF37" stroke="#8A6D1A" stroke-width="1"/>
+<text x="588" y="265" class="pin" fill="#fff" text-anchor="end">GPIO 26</text>
+<rect x="595" y="355" width="10" height="10" rx="1.5" fill="#D4AF37" stroke="#8A6D1A" stroke-width="1"/>
+<text x="588" y="365" class="pin" fill="#fff" text-anchor="end">GPIO 27</text>
+<rect x="595" y="495" width="10" height="10" rx="1.5" fill="#D4AF37" stroke="#8A6D1A" stroke-width="1"/>
+<text x="588" y="505" class="pin" fill="#fff" text-anchor="end">GPIO 25</text>
+<polyline points="380,590 330,590 330,700" fill="none" stroke="#262626" stroke-width="3.4" stroke-linejoin="round" stroke-linecap="round"/>
+<circle cx="330" cy="700" r="5.5" fill="#262626" stroke="#fff" stroke-width="1.5"/>
+<polyline points="600,260 688,260" fill="none" stroke="#2E9E57" stroke-width="3.4" stroke-linejoin="round" stroke-linecap="round"/>
+<line x1="688" y1="260" x2="792" y2="260" stroke="#9AA0A6" stroke-width="3"/>
+<rect x="706" y="248" width="68" height="24" rx="10" fill="#E9D3A8" stroke="#B89B62" stroke-width="1.2"/>
+<rect x="718" y="248" width="6" height="24" fill="#C0392B"/>
+<rect x="730" y="248" width="6" height="24" fill="#C0392B"/>
+<rect x="742" y="248" width="6" height="24" fill="#5A3A1E"/>
+<rect x="754" y="248" width="6" height="24" fill="#C9A227"/>
+<text x="740" y="240" class="pin" fill="#444" text-anchor="middle">220 Ω</text>
+<polyline points="792,260 870,260" fill="none" stroke="#2E9E57" stroke-width="3.4" stroke-linejoin="round" stroke-linecap="round"/>
+<circle cx="900" cy="252" r="30" fill="#7CE3A0" opacity=".35"/>
+<path d="M884 266 L884 248 A16 16 0 0 1 916 248 L916 266 Z" fill="#2E9E57" stroke="#00000033" stroke-width="1"/>
+<rect x="880" y="264" width="40" height="6" rx="2" fill="#2E9E57" stroke="#00000033" stroke-width="1"/>
+<ellipse cx="894" cy="246" rx="4" ry="7" fill="#fff" opacity=".55"/>
+<text x="870" y="288" class="pm" text-anchor="middle">+</text>
+<text x="930" y="288" class="pm" text-anchor="middle">−</text>
+<polyline points="930,260 1000,260" fill="none" stroke="#262626" stroke-width="3.4" stroke-linejoin="round" stroke-linecap="round"/>
+<circle cx="1000" cy="260" r="5.5" fill="#262626" stroke="#fff" stroke-width="1.5"/>
+<polyline points="600,360 688,360" fill="none" stroke="#D0342C" stroke-width="3.4" stroke-linejoin="round" stroke-linecap="round"/>
+<line x1="688" y1="360" x2="792" y2="360" stroke="#9AA0A6" stroke-width="3"/>
+<rect x="706" y="348" width="68" height="24" rx="10" fill="#E9D3A8" stroke="#B89B62" stroke-width="1.2"/>
+<rect x="718" y="348" width="6" height="24" fill="#C0392B"/>
+<rect x="730" y="348" width="6" height="24" fill="#C0392B"/>
+<rect x="742" y="348" width="6" height="24" fill="#5A3A1E"/>
+<rect x="754" y="348" width="6" height="24" fill="#C9A227"/>
+<text x="740" y="340" class="pin" fill="#444" text-anchor="middle">220 Ω</text>
+<polyline points="792,360 870,360" fill="none" stroke="#D0342C" stroke-width="3.4" stroke-linejoin="round" stroke-linecap="round"/>
+<circle cx="900" cy="352" r="30" fill="#FF8A80" opacity=".35"/>
+<path d="M884 366 L884 348 A16 16 0 0 1 916 348 L916 366 Z" fill="#D0342C" stroke="#00000033" stroke-width="1"/>
+<rect x="880" y="364" width="40" height="6" rx="2" fill="#D0342C" stroke="#00000033" stroke-width="1"/>
+<ellipse cx="894" cy="346" rx="4" ry="7" fill="#fff" opacity=".55"/>
+<text x="870" y="388" class="pm" text-anchor="middle">+</text>
+<text x="930" y="388" class="pm" text-anchor="middle">−</text>
+<polyline points="930,360 1000,360" fill="none" stroke="#262626" stroke-width="3.4" stroke-linejoin="round" stroke-linecap="round"/>
+<circle cx="1000" cy="360" r="5.5" fill="#262626" stroke="#fff" stroke-width="1.5"/>
+<polyline points="1000,260 1000,700" fill="none" stroke="#262626" stroke-width="3.4" stroke-linejoin="round" stroke-linecap="round"/>
+<circle cx="1000" cy="700" r="5.5" fill="#262626" stroke="#fff" stroke-width="1.5"/>
+<polyline points="600,500 770,500" fill="none" stroke="#F08A24" stroke-width="3.4" stroke-linejoin="round" stroke-linecap="round"/>
+<line x1="770" y1="500" x2="784" y2="500" stroke="#9AA0A6" stroke-width="3"/>
+<circle cx="820" cy="520" r="44" fill="#1A1A1A" stroke="#000" stroke-width="1.2"/>
+<circle cx="820" cy="520" r="7" fill="#444"/>
+<text x="798" y="508" class="pm" text-anchor="middle" style="fill:#E0E0E0">+</text>
+<text x="842" y="550" class="pm" text-anchor="middle" style="fill:#E0E0E0">−</text>
+<line x1="856" y1="540" x2="870" y2="540" stroke="#9AA0A6" stroke-width="3"/>
+<polyline points="870,540 900,540 900,700" fill="none" stroke="#262626" stroke-width="3.4" stroke-linejoin="round" stroke-linecap="round"/>
+<circle cx="900" cy="700" r="5.5" fill="#262626" stroke="#fff" stroke-width="1.5"/>
+<text x="690" y="252" class="wl" text-anchor="middle">GPIO 26</text>
+<text x="690" y="352" class="wl" text-anchor="middle">GPIO 27</text>
+<text x="690" y="492" class="wl" text-anchor="middle">GPIO 25</text>
+</svg>
+<div class="ttl" style="left:360.0px;top:100px;width:260px;text-align:center"><b>ESP32 microcontroller</b><span>المتحكم ESP32</span></div>
+<div class="ttl small" style="left:1026px;top:238px;width:240px;text-align:left"><b>Green: plenty left</b><span>أخضر: الكمية كافية</span></div>
+<div class="ttl small" style="left:1026px;top:338px;width:240px;text-align:left"><b>Red: nearly empty</b><span>أحمر: قرب ينتهي</span></div>
+<div class="ttl small" style="left:650.0px;top:572px;width:200px;text-align:center"><b>Active buzzer, 2 legs</b><span>جرس نشط بطرفين</span></div>
+<div class="foot"><p><b>Each LED: pin, then a 220 Ω resistor, then the long leg (+); the short leg (−) to ground.</b><span>كل ليد: المنفذ، بعدين مقاومة 220 أوم، بعدين رجله الطويلة (+)، ورجله القصيرة (−) للأرضي.</span></p><p><b>Buzzer: long leg (+) to GPIO 25, short leg (−) to ground, no resistor (an active buzzer).</b><span>الجرس: رجله الطويلة (+) على GPIO 25، والقصيرة (−) للأرضي، بدون مقاومة (جرس نشط).</span></p><p><b>All grounds are joined with the ESP32 ground.</b><span>كل الأرضيات موصولة بأرضي ESP32.</span></p></div>
+</div></body></html>

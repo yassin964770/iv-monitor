@@ -1,3 +1,8 @@
 .impeccable/
 build/
 *.bin
+# generated while building the documents; not sources
+*.zip
+**/img/_page*.png
+package/iv-monitor/
+__pycache__/
