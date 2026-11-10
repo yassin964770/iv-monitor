@@ -42,7 +42,7 @@
     <li><b>1</b>نظرة عامة على النظام</li><li><b>2</b>المكونات المادية</li><li><b>3</b>البناء الميكانيكي</li>
     <li><b>4</b>التوصيل الكهربائي</li><li><b>5</b>التغذية الكهربائية</li><li><b>6</b>البرنامج الثابت ومعالجة القياس</li>
     <li><b>7</b>التحكم بالصمام</li><li><b>8</b>الشبكة والصفحة المحلية</li><li><b>9</b>التحكم عن بعد عبر MQTT</li>
-    <li><b>10</b>لوحة التحكم على الإنترنت</li><li><b>11</b>الاختبار والتحقق</li><li><b>12</b>القيود</li>
+    <li><b>10</b>لوحة التحكم على الإنترنت</li><li><b>11</b>الاختبار والتحقق</li><li><b>12</b>القيود</li><li><b>13</b>الملفات المرفقة</li>
   </ol>
   <div class="meta">النموذج الأولي لمشروع تخرج. الشيفرة المصدرية: <span class="l">github.com/yassin964770/iv-monitor</span></div>
 </div><div class="foot"><span>الدليل التقني لجهاز مراقبة المحلول الوريدي</span><span class="pn"></span></div></section>
@@ -277,5 +277,28 @@
     <li><b>دقة المعايرة</b> مرتبطة بدقة الوزن المرجعي المستخدم فيها.</li>
     <li><b>الشبكات:</b> يدعم ESP32 شبكات 2.4 GHz فقط، ولا يدعم الشبكات التي تتطلب تسجيل دخول عبر صفحة ويب، ولا شبكات WPA-Enterprise.</li>
   </ul>
+<div class="foot"><span>الدليل التقني لجهاز مراقبة المحلول الوريدي</span><span class="pn"></span></div></section>
+
+<section class="page">
+  <h2><span class="no">13</span>الملفات المرفقة</h2>
+  <p>يحتوي الملف المضغوط المرفق <code>iv-monitor-code.zip</code> على الشيفرة المصدرية بإصدارها الأخير، وهو المنشور في المستودع، وعلى الملفات التالية داخل المجلد <code>iv-monitor</code>:</p>
+  <table><tr><th style="width:31%">الملف</th><th>المحتوى</th><th style="width:15%">الحجم</th></tr><tr><td class='l'><code>iv_monitor/iv_monitor.ino</code></td><td>الملف الرئيس للبرنامج الثابت: الثوابت والإعدادات الافتراضية، وقراءة HX711 وترشيحها، وحساب الكمية والمعدل، والتحكم بالمحرك، وإعداد الشبكة، وخادم الويب وواجهة HTTP، وعميل MQTT والتحقق من توقيع الأوامر، والحفظ في الذاكرة غير المتطايرة، والأوامر عبر المنفذ التسلسلي.</td><td style='white-space:nowrap'><span class='l'>31.1 KB</span><br>736 سطراً</td></tr><tr><td class='l'><code>iv_monitor/screen.ino</code></td><td>رسم شاشة OLED: الكمية المتبقية، والزمن المتبقي، والمعدل، وشريط حالة الصمام، وعنوان الصفحة، وشاشات بدء التشغيل والشبكة. يُبنى مع الملف الرئيس في البرنامج نفسه.</td><td style='white-space:nowrap'><span class='l'>9.9 KB</span><br>284 سطراً</td></tr><tr><td class='l'><code>iv_monitor/page.h</code></td><td>الصفحة المحلية كاملة (HTML وCSS وJavaScript) نصاً ثابتاً مضمّناً في البرنامج الثابت، يخدمه الجهاز على العنوان <code>/</code>.</td><td style='white-space:nowrap'><span class='l'>16.1 KB</span><br>271 سطراً</td></tr><tr><td class='l'><code>dashboard/index.html</code></td><td>لوحة التحكم على الإنترنت: صفحة ثابتة تتصل بخادم MQTT من المتصفح، وتعرض الحالة الحية، وتوقّع الأوامر وترسلها. يحدد الثابت <code>DEVICE</code> فيها الخادم واسم الجهاز ومفتاح التحكم.</td><td style='white-space:nowrap'><span class='l'>20.3 KB</span><br>362 سطراً</td></tr><tr><td class='l'><code>.github/workflows/pages.yml</code></td><td>سير عمل GitHub Actions الذي ينشر مجلد <code>dashboard</code> على GitHub Pages عند كل دفع إلى الفرع <code>main</code>.</td><td style='white-space:nowrap'>30 سطراً</td></tr><tr><td class='l'><code>figures/fig1-board.png</code></td><td>رسم الجهاز كما بُني، مع أسماء أجزائه (الشكل 2 في هذه الوثيقة).</td><td style='white-space:nowrap'><span class='l'>2.6 MB</span></td></tr><tr><td class='l'><code>figures/fig2-wiring.png</code></td><td>مخطط التوصيل الكهربائي (الشكل 3 في هذه الوثيقة).</td><td style='white-space:nowrap'><span class='l'>450.1 KB</span></td></tr><tr><td class='l'><code>figures/fig3-lights-buzzer.png</code></td><td>توصيل المصباحين والجرس (الشكل 4 في هذه الوثيقة).</td><td style='white-space:nowrap'><span class='l'>312.5 KB</span></td></tr><tr><td class='l'><code>tech-guide.pdf</code></td><td>هذه الوثيقة.</td><td style='white-space:nowrap'></td></tr></table>
+<div class="foot"><span>الدليل التقني لجهاز مراقبة المحلول الوريدي</span><span class="pn"></span></div></section>
+
+<section class="page">
+  <h3 style="margin-top:0">الثوابت الرئيسة في <code>iv_monitor.ino</code></h3>
+  <table><tr><th style="width:36%">الثابت</th><th>المعنى</th></tr><tr><td class='l'><code>AP_SSID</code></td><td>اسم شبكة الجهاز الخاصة: <code>IV-Monitor</code></td></tr><tr><td class='l'><code>AP_PASS</code></td><td>كلمة مرور شبكة الجهاز: <code>12345678</code></td></tr><tr><td class='l'><code>DEFAULT_MQTT_HOST</code></td><td>خادم MQTT الافتراضي: <code>broker.hivemq.com</code></td></tr><tr><td class='l'><code>DEFAULT_MQTT_PORT</code></td><td>منفذ الاتصال الافتراضي بـ TLS: <code>8883</code></td></tr><tr><td class='l'><code>DEFAULT_CONTROL_KEY</code></td><td>مفتاح توقيع الأوامر، ويطابق قيمة <code>key</code> في الثابت <code>DEVICE</code> بملف اللوحة</td></tr><tr><td class='l'><code>PIN_DT، PIN_SCK</code></td><td>منفذا HX711: <code>GPIO 18</code> و<code>GPIO 19</code></td></tr><tr><td class='l'><code>PIN_SERVO</code></td><td>منفذ إشارة المحرك: <code>GPIO 32</code></td></tr><tr><td class='l'><code>PIN_GREEN، PIN_RED</code></td><td>منفذا المصباحين: <code>GPIO 26</code> و<code>GPIO 27</code></td></tr><tr><td class='l'><code>PIN_BUZZ</code></td><td>منفذ الجرس: <code>GPIO 25</code></td></tr></table>
+  <h3>بناء البرنامج الثابت ورفعه</h3>
+  <ol>
+    <li>تُثبَّت حزمة اللوحات <code>esp32 by Espressif</code> بالإصدار 3.3.12، والمكتبات المذكورة في القسم 6 بإصداراتها، من مدير المكتبات في Arduino IDE.</li>
+    <li>يُفتح الملف <code>iv_monitor/iv_monitor.ino</code>، فتظهر الملفات الثلاثة في تبويبات المشروع نفسه، وتُبنى معاً.</li>
+    <li>تُختار اللوحة <code>ESP32 Dev Module</code> ومنفذ الجهاز، ثم يُرفع البرنامج. وتُقرأ الرسائل على المنفذ التسلسلي بسرعة 115200.</li>
+  </ol>
+  <p>وبأداة سطر الأوامر Arduino CLI، من داخل المجلد <code>iv_monitor</code>:</p>
+  <div class="formula">arduino-cli compile --fqbn esp32:esp32:esp32 .<br>arduino-cli upload -p COM8 --fqbn esp32:esp32:esp32 .</div>
+  <p>يشغل البرنامج المبني نحو 1.26 MB، أي 95% من مساحة البرنامج في الشريحة.</p>
+  <h3>نشر لوحة التحكم</h3>
+  <p>يُرفع المجلد <code>dashboard</code> وسير العمل <code>.github/workflows/pages.yml</code> إلى مستودع على GitHub، وتُفعَّل خدمة GitHub Pages بمصدر GitHub Actions، فتُنشر اللوحة تلقائياً عند كل دفع إلى الفرع <code>main</code>. ويمكن فتح الملف <code>dashboard/index.html</code> كذلك من أي خادم ويب ثابت، لأنه لا يعتمد على خادم خلفي.</p>
+  <p>تتطابق قيم اسم الجهاز والخادم ومفتاح التحكم في الثابت <code>DEVICE</code> بملف اللوحة مع قيم الجهاز، ويُشتق اسم الجهاز من رقم الشريحة، وهو في هذا النموذج <code>iv-c83d26</code>.</p>
 <div class="foot"><span>الدليل التقني لجهاز مراقبة المحلول الوريدي</span><span class="pn"></span></div></section>
 </body></html>

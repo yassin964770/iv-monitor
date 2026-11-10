@@ -6,3 +6,4 @@ build/
 **/img/_page*.png
 package/iv-monitor/
 __pycache__/
+technical-guide/iv-monitor/

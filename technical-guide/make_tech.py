@@ -1,11 +1,76 @@
-# The technical guide, in formal Arabic: what was built, with what, how it is connected, and the technologies used.
-# Every figure and constant here is taken from the firmware (iv_monitor/), the dashboard (dashboard/), the workflow
-# (.github/workflows/pages.yml) and the tests run on the board on 6 Nov 2026. Writes tech-guide.html and tech-guide.pdf.
-import pathlib
+# The technical guide, in formal Arabic: what was built, with what, how it is connected, the technologies used, and
+# what each file of the attached code does. Every figure and constant is taken from the firmware (iv_monitor/), the
+# dashboard (dashboard/), the workflow (.github/workflows/pages.yml) and the tests run on the board on 6 Nov 2026.
+# Writes tech-guide.html, tech-guide.pdf, and ../iv-monitor-code.zip (the current code, the figures and this guide).
+import pathlib, shutil, zipfile
 from playwright.sync_api import sync_playwright
 
 here = pathlib.Path(__file__).parent
+repo = here.parent
 TITLE = "الدليل التقني لجهاز مراقبة المحلول الوريدي"
+PDF_NAME = "tech-guide.pdf"
+# ---------- the files that go in the zip: (path in the zip, where it comes from) ----------
+CODE = ["iv_monitor/iv_monitor.ino", "iv_monitor/screen.ino", "iv_monitor/page.h", "dashboard/index.html", ".github/workflows/pages.yml"]
+stage = here / "iv-monitor"
+shutil.rmtree(stage, ignore_errors=True)
+for path in CODE:
+    (stage / path).parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy(repo / path, stage / path)
+(stage / "figures").mkdir()
+shutil.copy(repo / "report-figures/fig1-board.png", stage / "figures/fig1-board.png")
+shutil.copy(repo / "report-figures/fig2-wiring.png", stage / "figures/fig2-wiring.png")
+shutil.copy(repo / "report-figures/fig3-lights-buzzer.png", stage / "figures/fig3-lights-buzzer.png")
+
+
+def size(path):
+    n = (stage / path).stat().st_size
+    return f"{n / 1024:.1f} KB" if n < 1024 * 1024 else f"{n / 1024 / 1024:.1f} MB"
+
+
+def lines(path):
+    return len((stage / path).read_text(encoding="utf-8").splitlines())
+
+
+files = [
+    ("iv_monitor/iv_monitor.ino", f"{lines('iv_monitor/iv_monitor.ino')} سطراً، {size('iv_monitor/iv_monitor.ino')}",
+     "الملف الرئيس للبرنامج الثابت: الثوابت والإعدادات الافتراضية، وقراءة HX711 وترشيحها، وحساب الكمية والمعدل، والتحكم بالمحرك، وإعداد الشبكة، وخادم الويب وواجهة HTTP، وعميل MQTT والتحقق من توقيع الأوامر، والحفظ في الذاكرة غير المتطايرة، والأوامر عبر المنفذ التسلسلي."),
+    ("iv_monitor/screen.ino", f"{lines('iv_monitor/screen.ino')} سطراً، {size('iv_monitor/screen.ino')}",
+     "رسم شاشة OLED: الكمية المتبقية، والزمن المتبقي، والمعدل، وشريط حالة الصمام، وعنوان الصفحة، وشاشات بدء التشغيل والشبكة. يُبنى مع الملف الرئيس في البرنامج نفسه."),
+    ("iv_monitor/page.h", f"{lines('iv_monitor/page.h')} سطراً، {size('iv_monitor/page.h')}",
+     "الصفحة المحلية كاملة (HTML وCSS وJavaScript) نصاً ثابتاً مضمّناً في البرنامج الثابت، يخدمه الجهاز على العنوان <code>/</code>."),
+    ("dashboard/index.html", f"{lines('dashboard/index.html')} سطراً، {size('dashboard/index.html')}",
+     "لوحة التحكم على الإنترنت: صفحة ثابتة تتصل بخادم MQTT من المتصفح، وتعرض الحالة الحية، وتوقّع الأوامر وترسلها. يحدد الثابت <code>DEVICE</code> فيها الخادم واسم الجهاز ومفتاح التحكم."),
+    (".github/workflows/pages.yml", f"{lines('.github/workflows/pages.yml')} سطراً",
+     "سير عمل GitHub Actions الذي ينشر مجلد <code>dashboard</code> على GitHub Pages عند كل دفع إلى الفرع <code>main</code>."),
+    ("figures/fig1-board.png", size("figures/fig1-board.png"), "رسم الجهاز كما بُني، مع أسماء أجزائه (الشكل 2 في هذه الوثيقة)."),
+    ("figures/fig2-wiring.png", size("figures/fig2-wiring.png"), "مخطط التوصيل الكهربائي (الشكل 3 في هذه الوثيقة)."),
+    ("figures/fig3-lights-buzzer.png", size("figures/fig3-lights-buzzer.png"), "توصيل المصباحين والجرس (الشكل 4 في هذه الوثيقة)."),
+    (PDF_NAME, "", "هذه الوثيقة."),
+]
+def size_cell(b):
+    # "736 سطراً، 31.1 KB" -> the size on one line, the line count under it, each in its own direction
+    parts = [s.strip() for s in b.split("،")] if b else []
+    out = []
+    for s in reversed(parts):
+        out.append(f"<span class='l'>{s}</span>" if "B" in s else s)
+    return "<br>".join(out)
+
+
+files_rows = "".join(f"<tr><td class='l'><code>{a}</code></td><td>{c}</td><td style='white-space:nowrap'>{size_cell(b)}</td></tr>" for a, b, c in files)
+
+consts = [
+    ("AP_SSID", "اسم شبكة الجهاز الخاصة: <code>IV-Monitor</code>"),
+    ("AP_PASS", "كلمة مرور شبكة الجهاز: <code>12345678</code>"),
+    ("DEFAULT_MQTT_HOST", "خادم MQTT الافتراضي: <code>broker.hivemq.com</code>"),
+    ("DEFAULT_MQTT_PORT", "منفذ الاتصال الافتراضي بـ TLS: <code>8883</code>"),
+    ("DEFAULT_CONTROL_KEY", "مفتاح توقيع الأوامر، ويطابق قيمة <code>key</code> في الثابت <code>DEVICE</code> بملف اللوحة"),
+    ("PIN_DT، PIN_SCK", "منفذا HX711: <code>GPIO 18</code> و<code>GPIO 19</code>"),
+    ("PIN_SERVO", "منفذ إشارة المحرك: <code>GPIO 32</code>"),
+    ("PIN_GREEN، PIN_RED", "منفذا المصباحين: <code>GPIO 26</code> و<code>GPIO 27</code>"),
+    ("PIN_BUZZ", "منفذ الجرس: <code>GPIO 25</code>"),
+]
+consts_rows = "".join(f"<tr><td class='l'><code>{a}</code></td><td>{b}</td></tr>" for a, b in consts)
+
 
 
 def foot(n):
@@ -190,7 +255,7 @@ html = f"""<!doctype html>
     <li><b>1</b>نظرة عامة على النظام</li><li><b>2</b>المكونات المادية</li><li><b>3</b>البناء الميكانيكي</li>
     <li><b>4</b>التوصيل الكهربائي</li><li><b>5</b>التغذية الكهربائية</li><li><b>6</b>البرنامج الثابت ومعالجة القياس</li>
     <li><b>7</b>التحكم بالصمام</li><li><b>8</b>الشبكة والصفحة المحلية</li><li><b>9</b>التحكم عن بعد عبر MQTT</li>
-    <li><b>10</b>لوحة التحكم على الإنترنت</li><li><b>11</b>الاختبار والتحقق</li><li><b>12</b>القيود</li>
+    <li><b>10</b>لوحة التحكم على الإنترنت</li><li><b>11</b>الاختبار والتحقق</li><li><b>12</b>القيود</li><li><b>13</b>الملفات المرفقة</li>
   </ol>
   <div class="meta">النموذج الأولي لمشروع تخرج. الشيفرة المصدرية: <span class="l">github.com/yassin964770/iv-monitor</span></div>
 </div>{foot(0)}</section>
@@ -372,6 +437,29 @@ html = f"""<!doctype html>
     <li><b>الشبكات:</b> يدعم ESP32 شبكات 2.4 GHz فقط، ولا يدعم الشبكات التي تتطلب تسجيل دخول عبر صفحة ويب، ولا شبكات WPA-Enterprise.</li>
   </ul>
 {foot(0)}</section>
+
+<section class="page">
+  <h2><span class="no">13</span>الملفات المرفقة</h2>
+  <p>يحتوي الملف المضغوط المرفق <code>iv-monitor-code.zip</code> على الشيفرة المصدرية بإصدارها الأخير، وهو المنشور في المستودع، وعلى الملفات التالية داخل المجلد <code>iv-monitor</code>:</p>
+  <table><tr><th style="width:31%">الملف</th><th>المحتوى</th><th style="width:15%">الحجم</th></tr>{files_rows}</table>
+{foot(0)}</section>
+
+<section class="page">
+  <h3 style="margin-top:0">الثوابت الرئيسة في <code>iv_monitor.ino</code></h3>
+  <table><tr><th style="width:36%">الثابت</th><th>المعنى</th></tr>{consts_rows}</table>
+  <h3>بناء البرنامج الثابت ورفعه</h3>
+  <ol>
+    <li>تُثبَّت حزمة اللوحات <code>esp32 by Espressif</code> بالإصدار 3.3.12، والمكتبات المذكورة في القسم 6 بإصداراتها، من مدير المكتبات في Arduino IDE.</li>
+    <li>يُفتح الملف <code>iv_monitor/iv_monitor.ino</code>، فتظهر الملفات الثلاثة في تبويبات المشروع نفسه، وتُبنى معاً.</li>
+    <li>تُختار اللوحة <code>ESP32 Dev Module</code> ومنفذ الجهاز، ثم يُرفع البرنامج. وتُقرأ الرسائل على المنفذ التسلسلي بسرعة 115200.</li>
+  </ol>
+  <p>وبأداة سطر الأوامر Arduino CLI، من داخل المجلد <code>iv_monitor</code>:</p>
+  <div class="formula">arduino-cli compile --fqbn esp32:esp32:esp32 .<br>arduino-cli upload -p COM8 --fqbn esp32:esp32:esp32 .</div>
+  <p>يشغل البرنامج المبني نحو 1.26 MB، أي 95% من مساحة البرنامج في الشريحة.</p>
+  <h3>نشر لوحة التحكم</h3>
+  <p>يُرفع المجلد <code>dashboard</code> وسير العمل <code>.github/workflows/pages.yml</code> إلى مستودع على GitHub، وتُفعَّل خدمة GitHub Pages بمصدر GitHub Actions، فتُنشر اللوحة تلقائياً عند كل دفع إلى الفرع <code>main</code>. ويمكن فتح الملف <code>dashboard/index.html</code> كذلك من أي خادم ويب ثابت، لأنه لا يعتمد على خادم خلفي.</p>
+  <p>تتطابق قيم اسم الجهاز والخادم ومفتاح التحكم في الثابت <code>DEVICE</code> بملف اللوحة مع قيم الجهاز، ويُشتق اسم الجهاز من رقم الشريحة، وهو في هذا النموذج <code>iv-c83d26</code>.</p>
+{foot(0)}</section>
 </body></html>"""
 
 (here / "tech-guide.html").write_text(html, encoding="utf-8")
@@ -386,4 +474,11 @@ with sync_playwright() as p:
     for i, el in enumerate(pg.query_selector_all(".page")):
         el.screenshot(path=str(here / "img" / f"_page{i + 1}.png"))
     b.close()
-print("tech-guide.pdf written")
+shutil.copy(here / PDF_NAME, stage / PDF_NAME)
+out = repo / "iv-monitor-code.zip"
+out.unlink(missing_ok=True)
+with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as z:
+    for f in sorted(stage.rglob("*")):
+        if f.is_file():
+            z.write(f, "iv-monitor/" + f.relative_to(stage).as_posix())
+print("tech-guide.pdf and", out.name, "written")
