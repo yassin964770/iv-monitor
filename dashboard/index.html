@@ -53,6 +53,8 @@ details[open] summary::after{content:"−"}
 .grid{display:grid;gap:12px;margin-top:14px}
 .field{display:grid;grid-template-columns:1fr 92px auto;gap:8px;align-items:center}
 .field label{font-size:14px}
+.check{display:flex;gap:10px;align-items:center;font-size:14px}
+.check input{width:20px;height:20px;accent-color:var(--accent)}
 input{font:inherit;width:100%;padding:8px 10px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--ink);text-align:center}
 .sep{border-top:1px solid var(--line);margin:4px 0}
 #msg{min-height:1.4em;font-size:13.5px;color:var(--muted)}
@@ -122,6 +124,7 @@ input[dir=ltr]{text-align:left}
         </div>
         <div class="sep"></div>
         <div class="field"><label for="emptyG">وزن الكيس الفارغ (غرام)</label><input id="emptyG" type="number" inputmode="decimal" min="0"><span></span></div>
+        <label class="check"><input type="checkbox" id="alerts"> تفعيل التنبيهات (الجرس والضوء الأحمر وتنبيه الشاشة)</label>
         <div class="field"><label for="lowMl">حدّ تنبيه انخفاض الكمية (مل)</label><input id="lowMl" type="number" inputmode="decimal" min="0"><span></span></div>
         <div class="field"><label for="autoCloseMl">الإغلاق التلقائي عند (مل، 0 للتعطيل)</label><input id="autoCloseMl" type="number" inputmode="decimal" min="0"><span></span></div>
         <div class="field"><label for="openDeg">زاوية الفتح</label><input id="openDeg" type="number" inputmode="numeric" min="0" max="180"><button type="button" class="small" data-try="openDeg">اختبار</button></div>
@@ -170,6 +173,7 @@ function render(s) {
 
   if (!filled) {
     ['emptyG', 'lowMl', 'autoCloseMl', 'openDeg', 'closeDeg'].forEach(k => $(k).value = fmt(s[k]));
+    $('alerts').checked = !!s.alerts;
     filled = true;
   }
   draw(s.chart || []);
@@ -343,6 +347,10 @@ document.querySelectorAll('[data-try]').forEach(b => b.onclick = () => {
   if (!(d >= 0 && d <= 180)) { say('يجب أن تكون الزاوية بين 0 و180.', true); return; }
   send('servo ' + d, 'تم إرسال أمر تحريك المحرك إلى ' + d + ' درجة.');
 });
+$('alerts').onchange = () => {
+  const on = $('alerts').checked;
+  send('set alerts=' + (on ? 1 : 0), on ? 'تم إرسال أمر تفعيل التنبيهات.' : 'تم إرسال أمر إيقاف التنبيهات.');
+};
 $('saveBtn').onclick = () => {
   const parts = [];
   for (const k of ['emptyG', 'lowMl', 'autoCloseMl', 'openDeg', 'closeDeg']) {
@@ -350,6 +358,7 @@ $('saveBtn').onclick = () => {
     if (isNaN(v) || v < 0) { say('تحقق من قيمة "' + $(k).labels[0].textContent + '".', true); return; }
     parts.push(k + '=' + v);
   }
+  parts.push('alerts=' + ($('alerts').checked ? 1 : 0));
   filled = false;
   send('set ' + parts.join('&'), 'تم إرسال الإعدادات.');
 };
